@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:apec/pages/data/data.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:go_router/go_router.dart';
 
 class OnBoarding extends StatefulWidget {
   const OnBoarding({super.key});
@@ -120,7 +121,7 @@ class _OnBoardingState extends State<OnBoarding> {
                             style: TextStyle(color: Colors.white70),
                           ),
                           onPressed: () {
-                            //COLOCAR A FUNÇÂO QUE VAI PRA HOMEPAGE AQUI
+                           context.go('/starter_page');
                           },
                         ),
                       ],
@@ -152,7 +153,7 @@ class _OnBoardingState extends State<OnBoarding> {
                       ),
                       onPressed: () {
                         if (currentIndex == contentsList.length - 1) {
-                          //COLOCAR A FUNÇÂO QUE VAI PRA HOMEPAGE AQUI
+                          context.go('/starter_page');
                         }
                         _controller?.nextPage(
                           duration: Duration(milliseconds: 500),
