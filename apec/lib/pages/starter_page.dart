@@ -4,7 +4,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 class GradientText extends StatelessWidget {
   const GradientText(
-    this.text, {
+    this.text, {super.key, 
     required this.gradient,
     this.style,
   });
@@ -69,7 +69,7 @@ class SegundaTela extends StatelessWidget {
                 borderRadius: BorderRadius.all(Radius.circular(40)),
               ),
               child: OutlinedButton(
-                onPressed: () => context.go('/HomePage'),
+                onPressed: () => context.go('/tabview'),
                 style: OutlinedButton.styleFrom(
                   fixedSize: const Size(240, 48),
                   shape: const StadiumBorder(),

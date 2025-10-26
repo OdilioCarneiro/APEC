@@ -2,7 +2,7 @@ import 'package:apec/pages/starter_page.dart';
 import 'package:flutter/material.dart';
 import 'on_boarding.dart';
 import 'package:go_router/go_router.dart';
-import 'HomePage.dart';
+import 'tabview.dart';
 
 void main() {
   runApp(const MyApp());
@@ -19,8 +19,8 @@ final _router = GoRouter(
       builder: (context, state) => const SegundaTela(),
     ),
     GoRoute(
-      path: '/HomePage',
-      builder: (context, state) => const HomePage(),
+      path: '/tabview',
+      builder: (context, state) => const Tabview(),
     )
   ],
 );
