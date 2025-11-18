@@ -1,9 +1,10 @@
-import 'package:apec/pages/Cultura_page.dart';
+import 'package:apec/views/Cultura_page.dart';
+import 'package:apec/views/cadastro.dart';
 import 'package:flutter/material.dart';
 import 'package:curved_navigation_bar/curved_navigation_bar.dart';
-import 'package:apec/pages/HomePage.dart';
-import 'package:apec/pages/Sport_page.dart';
-import 'package:apec/pages/Instit_page.dart';
+import 'package:apec/views/homePage.dart';
+import 'package:apec/views/Sport_page.dart';
+
 
 class Tabview extends StatefulWidget {
   const Tabview({super.key});
@@ -16,10 +17,10 @@ class _TabviewState extends State<Tabview> {
   int _currentIndex = 0;
 
   final List<Widget> pages = [
-    Homepage(),
+    HomePage(),
     CulturaPage(),
     SportPage(),
-    InstitPage(),
+    Cadastro()
   ];
   @override
   Widget build(BuildContext context) {
@@ -32,9 +33,14 @@ class _TabviewState extends State<Tabview> {
         
         child: Scaffold(
           body: pages[_currentIndex],
+          extendBody: true,
           bottomNavigationBar: CurvedNavigationBar(
-            backgroundColor: const Color.fromARGB(0, 0, 0, 0),
-            buttonBackgroundColor: const Color.fromARGB(255, 255, 255, 255),
+           color: Colors.white,                 // cor da “pista” curvada
+            buttonBackgroundColor: Colors.white, // bolha do item ativo
+            backgroundColor: Colors.transparent, // deixa ver o fundo do body
+            animationCurve: Curves.easeInOut,
+            animationDuration: Duration(milliseconds: 400),
+            height: 60,
             items: <Widget>[
               Icon(
                 _currentIndex == 0 ? Icons.stars : Icons.stars_outlined,

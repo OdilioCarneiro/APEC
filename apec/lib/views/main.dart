@@ -1,10 +1,15 @@
-import 'package:apec/pages/starter_page.dart';
+import 'package:apec/views/starter_page.dart';
 import 'package:flutter/material.dart';
 import 'on_boarding.dart';
 import 'package:go_router/go_router.dart';
-import 'tabview.dart';
+import '../pages/components/tabview.dart';
+import 'package:flutter/services.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp, 
+  ]);
   runApp(const MyApp());
 }
 
