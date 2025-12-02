@@ -2,8 +2,8 @@ import 'package:apec/pages/Cultura_page.dart';
 import 'package:flutter/material.dart';
 import 'package:curved_navigation_bar/curved_navigation_bar.dart';
 import 'package:apec/pages/HomePage.dart';
-import 'package:apec/pages/Sport_page.dart';
-import 'package:apec/pages/Instit_page.dart';
+import 'package:apec/pages/sport_page.dart';
+import 'package:apec/pages/instit_page.dart';
 
 class Tabview extends StatefulWidget {
   const Tabview({super.key});
