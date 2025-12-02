@@ -1,9 +1,9 @@
+import 'package:apec/pages/InstitPage.dart';
 import 'package:apec/pages/starter_page.dart';
 import 'package:flutter/material.dart';
 import 'package:apec/pages/on_boarding.dart';
 import 'package:go_router/go_router.dart';
 import 'package:apec/pages/tabview.dart';
-import 'package:apec/pages/admPage.dart';
 
 
 void main() {
@@ -19,7 +19,7 @@ final _router = GoRouter(
       builder: (context, state) => const SegundaTela(),
     ),
     GoRoute(path: '/tabview', builder: (context, state) => const Tabview()),
-    GoRoute(path: '/admin', builder: (context, state) => AdminPage()),
+    GoRoute(path: '/instituicao', builder: (context, state) => InstitPage()),
   ],
 );
 

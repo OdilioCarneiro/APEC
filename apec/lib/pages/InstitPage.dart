@@ -1,5 +1,4 @@
 
-
 import 'package:flutter/material.dart';
 
 
@@ -7,8 +6,8 @@ void main() {
 }
 
 
-class AdminPage extends StatelessWidget {
-  const AdminPage ({super.key});
+class InstitPage extends StatelessWidget {
+  const InstitPage({super.key});
 
 
   @override
@@ -46,7 +45,7 @@ class LoginScreen extends StatelessWidget {
             children: [
               // IMAGEM DO LOGO
               Image.asset(
-                'assets/icon.png',
+                'assets/Logo.png',
                 height: 120,
               ),
               const SizedBox(height: 40),
@@ -131,30 +130,6 @@ class LoginScreen extends StatelessWidget {
             ],
           ),
         ),
-      ),
-
-
-      // BARRA DE NAVEGAÇÃO INFERIOR
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.event),
-            label: "Eventos",
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.sports_soccer),
-            label: "Esportes",
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.theater_comedy),
-            label: "Cultura",
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.school),
-            label: "Instituição",
-          ),
-        ],
       ),
     );
   }
