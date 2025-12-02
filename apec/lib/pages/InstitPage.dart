@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 
 
@@ -12,9 +11,9 @@ class InstitPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return const MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: const LoginScreen(),
+      home: LoginScreen(),
     );
   }
 }
@@ -26,6 +25,7 @@ class LoginScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final screenHeight = MediaQuery.of(context).size.height;
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
@@ -40,94 +40,102 @@ class LoginScreen extends StatelessWidget {
           ),
         ),
         child: SafeArea(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // IMAGEM DO LOGO
-              Image.asset(
-                'assets/Logo.png',
-                height: 120,
+          child: SingleChildScrollView(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minHeight: screenHeight,
               ),
-              const SizedBox(height: 40),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                
+              // IMAGEM DO LOGO
+                  Image.asset(
+                    'assets/Logo.png',
+                    height: 120,
+                  ),
+                  const SizedBox(height: 40),
 
 
               // CAMPO EMAIL
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 30),
-                child: TextField(
-                  decoration: InputDecoration(
-                    hintText: "Digite o email da instituição",
-                    filled: true,
-                    fillColor: Colors.white,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(20),
-                      borderSide: BorderSide.none,
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 30),
+                    child: TextField(
+                      decoration: InputDecoration(
+                        hintText: "Digite o email da instituição",
+                        filled: true,
+                        fillColor: Colors.white,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(20),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
                     ),
                   ),
-                ),
-              ),
-              const SizedBox(height: 15),
+                  const SizedBox(height: 15),
 
 
               // CAMPO SENHA
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 30),
-                child: TextField(
-                  obscureText: true,
-                  decoration: InputDecoration(
-                    hintText: "Digite a senha",
-                    filled: true,
-                    fillColor: Colors.white,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(20),
-                      borderSide: BorderSide.none,
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 30),
+                    child: TextField(
+                      obscureText: true,
+                      decoration: InputDecoration(
+                        hintText: "Digite a senha",
+                        filled: true,
+                        fillColor: Colors.white,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(20),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
                     ),
                   ),
-                ),
-              ),
-              const SizedBox(height: 25),
+                  const SizedBox(height: 25),
 
 
               // BOTÃO LOGIN
-              SizedBox(
-                width: 200,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.lightBlue,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
+                  SizedBox(
+                    width: 200,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.lightBlue,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                      ),
+                      onPressed: () {},
+                      child: const Text("Log in"),
                     ),
                   ),
-                  onPressed: () {},
-                  child: const Text("Log in"),
-                ),
-              ),
-              const SizedBox(height: 10),
+                  const SizedBox(height: 10),
 
 
               // TEXTO "ESQUECEU A SENHA?"
-              const Text(
-                "Esqueceu a senha?",
-                style: TextStyle(color: Colors.black54),
-              ),
-              const SizedBox(height: 25),
+                  const Text(
+                    "Esqueceu a senha?",
+                    style: TextStyle(color: Colors.black54),
+                  ),
+                  const SizedBox(height: 25),
 
 
               // BOTÃO CADASTRAR
-              OutlinedButton(
-                style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: Colors.lightBlue),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
+                  OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Colors.lightBlue),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                    ),
+                    onPressed: () {},
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 20),
+                      child: Text("Cadastrar"),
+                    ),
                   ),
-                ),
-                onPressed: () {},
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 20),
-                  child: Text("Cadastrar"),
-                ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),
