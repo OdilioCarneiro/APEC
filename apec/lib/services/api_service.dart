@@ -3,7 +3,7 @@ import 'dart:convert';
 
 class ApiService {
   // Atualize isso com a URL do seu backend quando estiver rodando
-  static const String baseUrl = 'http://10.10.8.2/api';
+  static const String baseUrl = 'https://apec-1-25ad.onrender.com/api';
 
   // Para testar em um dispositivo físico, use o IP da máquina em vez de localhost
   // static const String baseUrl = 'http://SEU_IP:3000/api';
