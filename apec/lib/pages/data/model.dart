@@ -115,6 +115,71 @@ class Evento {
       'linkFotos': linkFotos?.toString(),
     };
   }
+
+  // Factory para criar Evento a partir da resposta da API
+  factory Evento.fromAPI(Map<String, dynamic> json) {
+    return Evento(
+      nome: json['nome'] ?? '',
+      categoria: _parseCategoria(json['categoria']),
+      descricao: json['descricao'] ?? '',
+      data: json['data'] ?? '',
+      horario: json['horario'] ?? '',
+      local: json['local'] ?? '',
+      imagem: json['imagem'] ?? '',
+      categoriaEsportiva: json['categoriaEsportiva'] != null 
+          ? _parseCategoriEsportiva(json['categoriaEsportiva'])
+          : null,
+      genero: json['genero'] != null 
+          ? _parseGenero(json['genero'])
+          : null,
+      tema: json['tema'],
+      categoriaCultural: json['categoriaCultural'] != null
+          ? _parseCategoriaCultural(json['categoriaCultural'])
+          : null,
+      artistas: json['artistas'] != null 
+          ? List<String>.from(json['artistas'])
+          : null,
+    );
+  }
+
+  // Helper methods para converter strings em enums
+  static Categoria _parseCategoria(String? value) {
+    switch (value) {
+      case 'esportiva':
+        return Categoria.esportiva;
+      case 'cultural':
+        return Categoria.cultural;
+      default:
+        return Categoria.esportiva;
+    }
+  }
+
+  static CategoriEspotiva? _parseCategoriEsportiva(String? value) {
+    if (value == null) return null;
+    try {
+      return CategoriEspotiva.values.firstWhere((e) => e.name == value);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  static Genero? _parseGenero(String? value) {
+    if (value == null) return null;
+    try {
+      return Genero.values.firstWhere((e) => e.name == value);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  static CategoriaCultural? _parseCategoriaCultural(String? value) {
+    if (value == null) return null;
+    try {
+      return CategoriaCultural.values.firstWhere((e) => e.name == value);
+    } catch (e) {
+      return null;
+    }
+  }
 }
 
 //classe para eventos esportivos

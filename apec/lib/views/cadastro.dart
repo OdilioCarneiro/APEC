@@ -3,6 +3,7 @@ import 'package:apec/pages/data/model.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:dotted_border/dotted_border.dart';
+import 'package:apec/services/api_service.dart';
 
 class Cadastro extends StatelessWidget {
   const Cadastro({super.key});
@@ -168,45 +169,104 @@ class _CadastroEventoScreenState extends State<CadastroEventoScreen> {
     }
   }
 
-  void _salvarEvento() {
-    // Validar campos obrigatórios
-    if (_nomeController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Nome do evento é obrigatório')),
-      );
-      return;
-    }
-
+  void _salvarEvento() async {
+    // Validar se categoria foi selecionada
     if (_categoriaSelecionada == null) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Selecione uma categoria')),
+        const SnackBar(content: Text('Por favor, selecione uma categoria!')),
       );
       return;
     }
 
-    final evento = Evento(
-      nome: _nomeController.text,
-      categoria: _categoriaSelecionada!,
-      descricao: _descricaoController.text,
-      data: _dataSelecionada.toIso8601String().substring(0, 10),
-      horario: _formatHora(_horaSelecionada),
-      local: _localController.text,
-      imagem: _imagemController.text,
-      categoriaEsportiva: _categoriaSelecionada == Categoria.esportiva ? _categoriaEsportivaSelecionada : null,
-      genero: _categoriaSelecionada == Categoria.esportiva ? _generoSelecionado : null,
-      tema: _categoriaSelecionada == Categoria.cultural ? _temaController.text : null,
-      categoriaCultural: _categoriaSelecionada == Categoria.cultural ? _categoriaCulturalSelecionada : null,
-      artistas: _categoriaSelecionada == Categoria.cultural
-          ? _artistasController.text
-              .split(';')
-              .map((e) => e.trim())
-              .where((e) => e.isNotEmpty)
-              .toList()
-          : null,
-    );
+    // Validar campos obrigatórios
+    if (_nomeController.text.isEmpty || _localController.text.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Por favor, preencha todos os campos obrigatórios!')),
+      );
+      return;
+    }
 
-    // Retorna o evento para a HomePage
-    Navigator.pop(context, evento);
+    try {
+      // Mostrar loading
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Salvando evento...')),
+      );
+
+      // Preparar dados para enviar à API
+      Map<String, dynamic> eventoData = {
+        'nome': _nomeController.text,
+        'categoria': _categoriaSelecionada!.name,
+        'descricao': _descricaoController.text,
+        'data': _dataSelecionada.toIso8601String().substring(0, 10),
+        'horario': _formatHora(_horaSelecionada),
+        'local': _localController.text,
+        'imagem': _imagemController.text,
+      };
+
+      // Adicionar campos específicos para eventos esportivos
+      if (_categoriaSelecionada == Categoria.esportiva) {
+        eventoData['categoriaEsportiva'] = _categoriaEsportivaSelecionada?.name;
+        eventoData['genero'] = _generoSelecionado?.name;
+      }
+
+      // Adicionar campos específicos para eventos culturais
+      if (_categoriaSelecionada == Categoria.cultural) {
+        eventoData['tema'] = _temaController.text;
+        eventoData['categoriaCultural'] = _categoriaCulturalSelecionada?.name;
+        eventoData['artistas'] = _artistasController.text
+            .split(';')
+            .map((e) => e.trim())
+            .where((e) => e.isNotEmpty)
+            .toList();
+      }
+
+      // Enviar para API
+      final response = await ApiService.criarEvento(eventoData);
+
+      if (!mounted) return;
+      
+      // Sucesso
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Evento salvo com sucesso!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      // Limpar formulário
+      _nomeController.clear();
+      _descricaoController.clear();
+      _localController.clear();
+      _imagemController.clear();
+      _temaController.clear();
+      _artistasController.clear();
+      _horarioController.clear();
+      setState(() {
+        _categoriaSelecionada = null;
+        _categoriaEsportivaSelecionada = null;
+        _generoSelecionado = null;
+        _categoriaCulturalSelecionada = null;
+        _selectedImage = null;
+        _dataSelecionada = DateTime.now();
+        _horaSelecionada = TimeOfDay.now();
+      });
+
+      // Voltar para tela anterior (opcional)
+      if (mounted) {
+        Navigator.pop(context, response);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erro ao salvar evento: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   @override
