@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:apec/pages/data/model.dart';
 import 'package:apec/services/api_service.dart';
-import 'cadastro.dart'; 
+import 'package:apec/views/cadastro.dart'; 
+import 'package:apec/pages/components/card.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
