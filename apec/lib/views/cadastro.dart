@@ -169,6 +169,21 @@ class _CadastroEventoScreenState extends State<CadastroEventoScreen> {
   }
 
   void _salvarEvento() {
+    // Validar campos obrigatórios
+    if (_nomeController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Nome do evento é obrigatório')),
+      );
+      return;
+    }
+
+    if (_categoriaSelecionada == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Selecione uma categoria')),
+      );
+      return;
+    }
+
     final evento = Evento(
       nome: _nomeController.text,
       categoria: _categoriaSelecionada!,
@@ -189,8 +204,9 @@ class _CadastroEventoScreenState extends State<CadastroEventoScreen> {
               .toList()
           : null,
     );
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Evento salvo!')));
-    // print(evento.toMap());
+
+    // Retorna o evento para a HomePage
+    Navigator.pop(context, evento);
   }
 
   @override
@@ -435,7 +451,7 @@ class _CadastroEventoScreenState extends State<CadastroEventoScreen> {
                   ),
                 ),
               ],
-
+              const SizedBox(height: 14),
               SizedBox(
                 width: 400,
                 child: TextFormField(
