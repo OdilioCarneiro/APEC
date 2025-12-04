@@ -87,17 +87,17 @@ class _HomePageState extends State<HomePage> {
             );
           }
 
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: Wrap(
-              spacing: 18,
-              runSpacing: 18,
-              children: eventos.map((e) {
-                final evento = Evento.fromAPI(e);
+            return SingleChildScrollView(
+             padding: const EdgeInsets.all(16),
+             child: Wrap(
+               spacing: 18,
+               runSpacing: 18,
+               children: eventos.map((e) {
+                 final evento = Evento.fromAPI(e);
                  return EventCardComponent(evento: evento);
-              }).toList(),
-            ),
-          );
+               }).toList(),
+             ),
+           );
         },
       ),
     );
