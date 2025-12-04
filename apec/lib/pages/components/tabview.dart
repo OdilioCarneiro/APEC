@@ -19,8 +19,8 @@ class _TabviewState extends State<Tabview> {
 
   final List<Widget> pages = [
     HomePage(),
-    CulturaPage(),
     SportPage(),
+    CulturaPage(),
     Cadastro()
   ];
   @override

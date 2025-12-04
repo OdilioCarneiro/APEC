@@ -511,7 +511,7 @@ class _CadastroEventoScreenState extends State<CadastroEventoScreen> {
                   ),
                 ),
               ],
-
+              const SizedBox(height: 14),
               SizedBox(
                 width: 400,
                 child: TextFormField(
