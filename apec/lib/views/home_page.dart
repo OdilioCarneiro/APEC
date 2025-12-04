@@ -94,7 +94,7 @@ class _HomePageState extends State<HomePage> {
               runSpacing: 18,
               children: eventos.map((e) {
                 final evento = Evento.fromAPI(e);
-                return EventoCard(evento: evento);
+                 return EventCardComponent(evento: evento);
               }).toList(),
             ),
           );
