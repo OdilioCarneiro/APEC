@@ -1,3 +1,4 @@
+import 'package:apec/views/cadastro.dart';
 import 'package:apec/views/starter_page.dart';
 import 'package:flutter/material.dart';
 import 'on_boarding.dart';
@@ -26,7 +27,11 @@ final _router = GoRouter(
     GoRoute(
       path: '/tabview',
       builder: (context, state) => const Tabview(),
-    )
+    ),
+    GoRoute(
+      path: '/cadastro',
+      builder: (context, state) => const Cadastro(),
+    ),
   ],
 );
 

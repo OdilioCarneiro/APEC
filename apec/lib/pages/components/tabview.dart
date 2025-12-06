@@ -1,5 +1,5 @@
 import 'package:apec/views/cultura_page.dart';
-import 'package:apec/views/cadastro.dart';
+import 'package:apec/views/instit_page.dart';
 import 'package:flutter/material.dart';
 import 'package:curved_navigation_bar/curved_navigation_bar.dart';
 import 'package:apec/views/home_page.dart';
@@ -21,7 +21,7 @@ class _TabviewState extends State<Tabview> {
     HomePage(),
     SportPage(),
     CulturaPage(),
-    Cadastro()
+    InstitPage()
   ];
   @override
   Widget build(BuildContext context) {

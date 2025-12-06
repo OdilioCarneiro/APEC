@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:apec/services/api_service.dart';
+import 'package:go_router/go_router.dart';
 
 class Cadastro extends StatelessWidget {
   const Cadastro({super.key});
@@ -683,32 +684,64 @@ class _CadastroEventoScreenState extends State<CadastroEventoScreen> {
                       ),
                     ),
                     const SizedBox(height: 24),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 52,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor:
-                              const Color.fromARGB(255, 81, 191, 255),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(50),
-                            side: const BorderSide(
-                              color: Color.fromARGB(255, 69, 178, 241),
-                              width: 2,
-                            ),
-                          ),
-                        ),
-                        onPressed: _salvarEvento,
-                        child: const Text(
-                          'Salvar Evento',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontFamily: 'RobotoBold',
+                   SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color.fromARGB(255, 81, 191, 255),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(50),
+                          side: const BorderSide(
+                            color: Color.fromARGB(255, 69, 178, 241),
+                            width: 2,
                           ),
                         ),
                       ),
+                      onPressed: _salvarEvento,
+                      child: const Text(
+                        'Salvar Evento',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontFamily: 'RobotoBold',
+                        ),
+                      ),
                     ),
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color.fromARGB(255, 255, 81, 81),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(50),
+                          side: const BorderSide(
+                            color: Color.fromARGB(255, 241, 69, 69),
+                            width: 2,
+                          ),
+                        ),
+                      ),
+                      onPressed: () {
+                        context.pop();
+                      },
+                      child: const Text(
+                        'Cancelar',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontFamily: 'RobotoBold',
+                        ),
+                      ),
+                    ),
+                  ),
+
+
+                    
                   ],
                 ),
               ),
