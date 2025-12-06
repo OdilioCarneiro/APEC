@@ -54,7 +54,7 @@ class EventCardComponent extends StatelessWidget {
                 decoration: BoxDecoration(
                   boxShadow: [
                     BoxShadow(
-                      color: const Color.fromARGB(255, 0, 0, 0).withValues(alpha: 0.8),
+                      color: Colors.black,
                       spreadRadius: 6,
                       blurRadius: 18,
                       offset: const Offset(0, 80),

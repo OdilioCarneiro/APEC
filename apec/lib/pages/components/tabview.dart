@@ -36,8 +36,8 @@ class _TabviewState extends State<Tabview> {
           body: pages[_currentIndex],
           extendBody: true,
           bottomNavigationBar: CurvedNavigationBar(
-           color: Colors.white,                 // cor da “pista” curvada
-            buttonBackgroundColor: Colors.white, // bolha do item ativo
+           color: const Color.fromARGB(246, 246, 246, 246),                 // cor da “pista” curvada
+            buttonBackgroundColor: const Color.fromARGB(246, 246, 246, 246), // bolha do item ativo
             backgroundColor: Colors.transparent, // deixa ver o fundo do body
             animationCurve: Curves.easeInOut,
             animationDuration: Duration(milliseconds: 400),

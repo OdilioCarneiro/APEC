@@ -36,7 +36,7 @@ enum CategoriEspotiva {
   carimba,
   natacao,
   artesMarciais,
-  ginastica,
+  handeboll,
   tenis
 }
 
