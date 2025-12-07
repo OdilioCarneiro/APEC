@@ -24,7 +24,7 @@ exports.obterEvento = async (req, res) => {
 };
 
 // Criar novo evento (adaptado para usar Cloudinary)
-eexports.criarEvento = async (req, res) => {
+exports.criarEvento = async (req, res) => {
   try {
     console.log('BODY:', req.body);
     console.log('FILE:', req.file);
