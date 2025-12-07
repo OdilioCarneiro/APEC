@@ -1,39 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:apec/pages/data/model.dart'; // seu modelo
+import 'package:apec/pages/data/model.dart';
 
-// Amostras (remova se vierem do seu backend)
-final Instituicao instituicaoSample = Instituicao(
-  imagem: 'https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?auto=format&fit=crop&w=800&q=60',
-);
+/// Widget reutilizável que exibe um card de evento
+class EventCardComponent extends StatelessWidget {
+  final Evento evento;
+  final Instituicao? instituicao; // Opcional se quiser adicionar depois
 
-final Evento sampleEvento = Evento(
-  nome: 'Corrida Solidária',
-  categoria: Categoria.esportiva,
-  descricao: 'Corrida de 5km para arrecadar alimentos.',
-  data: '2025-12-01',
-  local: 'Parque Central',
-  horario: '7:30',
-  imagem: 'https://images.unsplash.com/photo-1508609349937-5ec4ae374ebf?auto=format&fit=crop&w=800&q=60',
-);
-
-void main() => runApp(const CardApp());
-
-class CardApp extends StatelessWidget {
-  const CardApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      home: Scaffold(
-        appBar: AppBar(title: const Text('Card Sample')),
-        body: const CardExample(),
-      ),
-    );
-  }
-}
-
-class CardExample extends StatelessWidget {
-  const CardExample({super.key});
+  const EventCardComponent({
+    required this.evento,
+    this.instituicao,
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -45,11 +22,12 @@ class CardExample extends StatelessWidget {
           height: 140,
           child: Stack(
             children: [
-              // Imagem de fundo (instituição) com cantos suaves
-              ClipRRect(
-                borderRadius: BorderRadius.circular(0),
-                child: Image.network(
-                  instituicaoSample.imagem,
+              // Imagem de fundo (instituição) se disponível
+              if (instituicao != null)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(0),
+                  child: Image.network(
+                    instituicao!.imagem,
                   fit: BoxFit.cover,
                   width: double.infinity,
                   height: double.infinity,
@@ -62,7 +40,7 @@ class CardExample extends StatelessWidget {
               ClipRRect(
                 borderRadius: BorderRadius.circular(0),
                 child: Image.network(
-                  sampleEvento.imagem,
+                  evento.imagem,
                   fit: BoxFit.cover,
                   width: double.infinity,
                   height: double.infinity,
@@ -94,7 +72,7 @@ class CardExample extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        sampleEvento.nome,
+                        evento.nome,
                         style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
@@ -106,7 +84,7 @@ class CardExample extends StatelessWidget {
                       ),
                       const SizedBox(height: 0),
                       Text(
-                        '${sampleEvento.data}  • ${sampleEvento.horario}',
+                        '${evento.data}  • ${evento.horario}',
                         style: const TextStyle(
                           color: Colors.white70,
                           fontFamily: 'Roboto',
@@ -114,7 +92,7 @@ class CardExample extends StatelessWidget {
                         ),
                       ),
                       Text(
-                       sampleEvento.local,
+                        evento.local,
                         style: const TextStyle(
                           color: Colors.white70,
                           fontFamily: 'Roboto',
@@ -126,23 +104,24 @@ class CardExample extends StatelessWidget {
                 ),
               ),
 
-              // Avatar circular com borda gradiente e fundo branco (top-right com margem)
-              Positioned(
-                top: 6,     // ajuste de afastamento do topo
-                right: 14,  // ajuste para “sair” da extremidade
-                child: _GradientCircleAvatar(
-                  imageUrl: instituicaoSample.imagem, // ou sampleEvento.imagem
-                  size: 40,          // diâmetro total (borda + conteúdo)
-                  borderThickness: 2, // espessura da borda
-                  gradientColors: const [
-                    Color(0xFFFA4050), // FA4050
-                    Color(0xFF59B0E3), // 59B0E3
-                    Color(0xFFF5E15F), // F5E15F
-                  ],
+           
+              if (instituicao != null)
+                Positioned(
+                  top: 6,
+                  right: 14,
+                  child: _GradientCircleAvatar(
+                    imageUrl: instituicao!.imagem,
+                    size: 40,
+                    borderThickness: 2,
+                    gradientColors: const [
+                      Color(0xFFFA4050),
+                      Color(0xFF59B0E3),
+                      Color(0xFFF5E15F),
+                    ],
+                  ),
                 ),
-              ),
 
-              // Camada de toque
+      
               Positioned.fill(
                 child: Material(
                   color: Colors.transparent,
