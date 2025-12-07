@@ -68,7 +68,7 @@ class ApiService {
     final stream = http.ByteStream(imagem.openRead());
     final length = await imagem.length();
     final multipartFile = http.MultipartFile(
-      'imagem',
+      'file', // Nome do campo esperado pelo backend
       stream,
       length,
       filename: imagem.path.split('/').last,
@@ -76,11 +76,12 @@ class ApiService {
     request.files.add(multipartFile);
 
     // 2. Adiciona campos DEPOIS (converte para String)
-    dados.forEach((key, value) {
-      if (value != null) {
-        request.fields[key] = value.toString();
-      }
-    });
+  dados.forEach((key, value) {
+  if (value != null && key != 'imagem') {
+    request.fields[key] = value.toString();
+  }
+});
+
 
     final streamedResponse = await request.send();
     final response = await http.Response.fromStream(streamedResponse);

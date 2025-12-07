@@ -1,16 +1,17 @@
 const express = require('express');
 const router = express.Router();
-const eventoController = require('../controllers/eventoController'); 
-const upload = require('../middlewares/multer'); // ✅ CLOUDINARY
+const eventoController = require('../controllers/eventoController');
+const upload = require('../middlewares/multer');
 
-// Rotas
+// Rotas para eventos
 router.get('/', eventoController.listarEventos);
 router.get('/:id', eventoController.obterEvento);
 
+// ✅ ROTA POST CORRETA COM CLOUDINARY
 router.post(
   '/',
-  upload.single('imagem'),         // ✅ CAMPO "imagem" DO FLUTTER
-  eventoController.criarEvento     // ✅ MESMO NOME DO REQUIRE
+  upload.single('file'),
+  eventoController.criarEvento
 );
 
 router.put('/:id', eventoController.atualizarEvento);

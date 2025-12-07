@@ -24,15 +24,16 @@ exports.obterEvento = async (req, res) => {
 };
 
 // Criar novo evento (adaptado para usar Cloudinary)
-exports.criarEvento = async (req, res) => {
+eexports.criarEvento = async (req, res) => {
   try {
     console.log('BODY:', req.body);
     console.log('FILE:', req.file);
 
     const dados = req.body;
 
+    // ✅ SE VEIO IMAGEM, SALVA A URL DO CLOUDINARY
     if (req.file) {
-      dados.imagem = "imagem_recebida_ok"; // depois troca pelo Cloudinary
+      dados.imagem = req.file.path; // ✅ ESSE É O LINK REAL
     }
 
     const novoEvento = new Evento(dados);
@@ -42,7 +43,7 @@ exports.criarEvento = async (req, res) => {
   } catch (error) {
     res.status(400).json({
       erro: 'Erro ao criar evento',
-      detalhes: error.message
+      detalhes: error.message,
     });
   }
 };
