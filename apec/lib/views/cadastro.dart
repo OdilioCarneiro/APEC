@@ -253,7 +253,7 @@ class _CadastroEventoScreenState extends State<CadastroEventoScreen> {
       });
 
       if (mounted) {
-        Navigator.pop(context, response);
+        context.pop(response);
       }
     } catch (e) {
       if (!mounted) return;

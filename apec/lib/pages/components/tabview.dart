@@ -1,5 +1,5 @@
 import 'package:apec/views/cultura_page.dart';
-import 'package:apec/views/instit_page.dart';
+import 'package:apec/views/login.dart';
 import 'package:flutter/material.dart';
 import 'package:curved_navigation_bar/curved_navigation_bar.dart';
 import 'package:apec/views/home_page.dart';

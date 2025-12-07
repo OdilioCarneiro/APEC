@@ -38,6 +38,7 @@ class CardContent {
   String image;
   String title;
   Color backgroundColor;
+  
   CardContent({
     required this.image,
     required this.title,

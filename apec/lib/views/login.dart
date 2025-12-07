@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 
-void main() {}
 
 class InstitPage extends StatelessWidget {
   const InstitPage({super.key});
@@ -49,10 +48,10 @@ class LoginScreen extends StatelessWidget {
                         children: [
                           // LOGO
                           SvgPicture.asset(
-                            'assets/icon/icon.svg',
-                            height: 120,
+                            'assets/Icon.svg',
+                            height: 150,
                           ),
-                          const SizedBox(height: 40),
+                          const SizedBox(height: 60),
 
                           // EMAIL
                           Padding(
@@ -100,9 +99,11 @@ class LoginScreen extends StatelessWidget {
                                 ),
                               ),
                               onPressed: () {
-                                context.push('/cadastro');
+                                context.go('/cadastro');
                               },
-                              child: const Text("Login"),
+                              child: const Text("Login",
+                                  style: TextStyle(fontSize: 18, color: Colors.white)
+                                  ),
                             ),
                           ),
                           const SizedBox(height: 10),
@@ -125,7 +126,11 @@ class LoginScreen extends StatelessWidget {
                             onPressed: () {},
                             child: const Padding(
                               padding: EdgeInsets.symmetric(horizontal: 20),
-                              child: Text("Cadastrar"),
+                              child: Text("Cadastrar", 
+                              style: TextStyle(
+                               fontSize: 18,
+                               color:  Colors.lightBlue)
+                               ),
                             ),
                           ),
 

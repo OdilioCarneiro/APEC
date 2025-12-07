@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:apec/pages/data/model.dart';
+import 'package:go_router/go_router.dart';
 
 /// Widget reutilizável que exibe um card de evento
 class EventCardComponent extends StatelessWidget {
@@ -128,7 +129,9 @@ class EventCardComponent extends StatelessWidget {
                   child: InkWell(
                     splashColor: Colors.blue.withAlpha(80),
                     highlightColor: const Color.fromARGB(255, 45, 155, 244),
-                    onTap: () => debugPrint('Card tapped.'),
+                    onTap: (){
+                      context.push('/evento', extra: evento);
+                    },
                   ),
                 ),
               ),
