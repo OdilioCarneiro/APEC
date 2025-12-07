@@ -1,5 +1,6 @@
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'dart:io';
 
 class ApiService {
   // Atualize isso com a URL do seu backend quando estiver rodando
@@ -12,7 +13,7 @@ class ApiService {
   static Future<List<dynamic>> listarEventos() async {
     try {
       final response = await http.get(Uri.parse('$baseUrl/eventos'));
-      
+
       if (response.statusCode == 200) {
         return json.decode(response.body);
       } else {
@@ -27,7 +28,7 @@ class ApiService {
   static Future<Map<String, dynamic>> obterEvento(String id) async {
     try {
       final response = await http.get(Uri.parse('$baseUrl/eventos/$id'));
-      
+
       if (response.statusCode == 200) {
         return json.decode(response.body);
       } else {
@@ -38,22 +39,56 @@ class ApiService {
     }
   }
 
-  /// Criar um novo evento
-  static Future<Map<String, dynamic>> criarEvento(Map<String, dynamic> evento) async {
-    try {
+  /// Criar evento de forma inteligente (imagem opcional)
+  static Future<Map<String, dynamic>> criarEventoSmart({
+    required Map<String, dynamic> dados,
+    File? imagem,
+  }) async {
+    final uri = Uri.parse('$baseUrl/eventos');
+
+    // CENÁRIO 1: Sem imagem -> Envia JSON normal
+    if (imagem == null) {
       final response = await http.post(
-        Uri.parse('$baseUrl/eventos'),
+        uri,
         headers: {'Content-Type': 'application/json'},
-        body: json.encode(evento),
+        body: json.encode(dados),
       );
-      
+
       if (response.statusCode == 201) {
         return json.decode(response.body);
       } else {
-        throw Exception('Erro ao criar evento: ${response.statusCode}');
+        throw Exception('Erro ao criar evento (JSON): ${response.statusCode} - ${response.body}');
       }
-    } catch (e) {
-      throw Exception('Erro na requisição: $e');
+    }
+
+    // CENÁRIO 2: Com imagem -> Envia Multipart
+    final request = http.MultipartRequest('POST', uri);
+
+    // 1. Adiciona arquivo PRIMEIRO
+    final stream = http.ByteStream(imagem.openRead());
+    final length = await imagem.length();
+    final multipartFile = http.MultipartFile(
+      'imagem',
+      stream,
+      length,
+      filename: imagem.path.split('/').last,
+    );
+    request.files.add(multipartFile);
+
+    // 2. Adiciona campos DEPOIS (converte para String)
+    dados.forEach((key, value) {
+      if (value != null) {
+        request.fields[key] = value.toString();
+      }
+    });
+
+    final streamedResponse = await request.send();
+    final response = await http.Response.fromStream(streamedResponse);
+
+    if (response.statusCode == 201) {
+      return json.decode(response.body);
+    } else {
+      throw Exception('Erro ao criar evento (Multipart): ${response.statusCode} - ${response.body}');
     }
   }
 
@@ -68,7 +103,7 @@ class ApiService {
         headers: {'Content-Type': 'application/json'},
         body: json.encode(evento),
       );
-      
+
       if (response.statusCode == 200) {
         return json.decode(response.body);
       } else {
@@ -83,7 +118,7 @@ class ApiService {
   static Future<void> deletarEvento(String id) async {
     try {
       final response = await http.delete(Uri.parse('$baseUrl/eventos/$id'));
-      
+
       if (response.statusCode != 200) {
         throw Exception('Erro ao deletar evento: ${response.statusCode}');
       }
@@ -98,7 +133,7 @@ class ApiService {
       final response = await http.get(
         Uri.parse('$baseUrl/eventos/categoria/$categoria'),
       );
-      
+
       if (response.statusCode == 200) {
         return json.decode(response.body);
       } else {
@@ -115,7 +150,7 @@ class ApiService {
       final response = await http.get(
         Uri.parse('${baseUrl.replaceAll('/api', '')}/api/health'),
       ).timeout(const Duration(seconds: 5));
-      
+
       return response.statusCode == 200;
     } catch (e) {
       return false;

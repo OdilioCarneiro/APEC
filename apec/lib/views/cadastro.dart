@@ -170,7 +170,7 @@ class _CadastroEventoScreenState extends State<CadastroEventoScreen> {
   }
 
   void _salvarEvento() async {
-    // Validar se categoria foi selecionada
+    // Validação básica de campos obrigatórios
     if (_categoriaSelecionada == null) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -179,56 +179,63 @@ class _CadastroEventoScreenState extends State<CadastroEventoScreen> {
       return;
     }
 
-    // Validar campos obrigatórios
     if (_nomeController.text.isEmpty || _localController.text.isEmpty) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Por favor, preencha todos os campos obrigatórios!')),
+        const SnackBar(content: Text('Por favor, preencha nome e local!')),
       );
       return;
     }
 
+    // NÃO valida mais a imagem (agora é opcional)
+
     try {
-      // Mostrar loading
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Salvando evento...')),
       );
 
-      // Preparar dados para enviar à API
-      Map<String, dynamic> eventoData = {
+      // Monta os dados (Map<String, dynamic> para aceitar null/outros tipos se precisar)
+      final dados = <String, dynamic>{
         'nome': _nomeController.text,
         'categoria': _categoriaSelecionada!.name,
         'descricao': _descricaoController.text,
         'data': _dataSelecionada.toIso8601String().substring(0, 10),
         'horario': _formatHora(_horaSelecionada),
         'local': _localController.text,
-        'imagem': _imagemController.text,
       };
 
-      // Adicionar campos específicos para eventos esportivos
       if (_categoriaSelecionada == Categoria.esportiva) {
-        eventoData['categoriaEsportiva'] = _categoriaEsportivaSelecionada?.name;
-        eventoData['genero'] = _generoSelecionado?.name;
+        if (_categoriaEsportivaSelecionada != null) {
+          dados['categoriaEsportiva'] = _categoriaEsportivaSelecionada!.name;
+        }
+        if (_generoSelecionado != null) {
+          dados['genero'] = _generoSelecionado!.name;
+        }
       }
 
-      // Adicionar campos específicos para eventos culturais
       if (_categoriaSelecionada == Categoria.cultural) {
-        eventoData['tema'] = _temaController.text;
-        eventoData['categoriaCultural'] = _categoriaCulturalSelecionada?.name;
-        eventoData['artistas'] = _artistasController.text
+        dados['tema'] = _temaController.text;
+        dados['categoriaCultural'] = _categoriaCulturalSelecionada?.name ?? '';
+
+        final artistas = _artistasController.text
             .split(';')
             .map((e) => e.trim())
             .where((e) => e.isNotEmpty)
             .toList();
+        // Se quiser mandar array no JSON ou string no Multipart, 
+        // o ideal é mandar string (separada por ;) para simplificar o Multipart
+        dados['artistas'] = artistas.join(';'); 
       }
 
-      // Enviar para API
-      final response = await ApiService.criarEvento(eventoData);
+      // Chama o método inteligente
+      final response = await ApiService.criarEventoSmart(
+        dados: dados,
+        imagem: _selectedImage, // passa a imagem (pode ser null)
+      );
 
       if (!mounted) return;
-      
-      // Sucesso
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Evento salvo com sucesso!'),
@@ -236,7 +243,7 @@ class _CadastroEventoScreenState extends State<CadastroEventoScreen> {
         ),
       );
 
-      // Limpar formulário
+      // Limpa formulário
       _nomeController.clear();
       _descricaoController.clear();
       _localController.clear();
@@ -254,20 +261,20 @@ class _CadastroEventoScreenState extends State<CadastroEventoScreen> {
         _horaSelecionada = TimeOfDay.now();
       });
 
-      // Voltar para tela anterior (opcional)
-      if (mounted) {
-        Navigator.pop(context, response);
-      }
+      Navigator.pop(context, response);
+
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Erro ao salvar evento: $e'),
+          content: Text('Erro ao salvar: $e'),
           backgroundColor: Colors.red,
         ),
       );
     }
   }
+
+
 
   @override
   Widget build(BuildContext context) {
