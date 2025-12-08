@@ -99,7 +99,7 @@ class LoginScreen extends StatelessWidget {
                                 ),
                               ),
                               onPressed: () {
-                                context.go('/cadastro');
+                                context.push('/cadastro');
                               },
                               child: const Text("Login",
                                   style: TextStyle(fontSize: 18, color: Colors.white)

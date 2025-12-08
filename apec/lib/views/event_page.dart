@@ -10,7 +10,6 @@ class EventPage extends StatelessWidget {
     final size = MediaQuery.of(context).size;
     final screenHeight = size.height;
 
-
     // Gradiente de fundo conforme categoria
     final Gradient fundoEvento =
         (evento.categoria == Categoria.esportiva)
@@ -18,16 +17,16 @@ class EventPage extends StatelessWidget {
                 begin: Alignment.center,
                 end: Alignment.bottomCenter,
                 colors: [
-                  Colors.white10,
+                  const Color.fromARGB(255, 255, 255, 255),
                   Colors.yellow.shade300,
                 ],
               )
-            : LinearGradient(
+            : const LinearGradient(
                 begin: Alignment.center,
                 end: Alignment.bottomCenter,
                 colors: [
-                  Colors.white10,
-                  const Color.fromARGB(255, 255, 110, 110),
+                  Color.fromARGB(255, 255, 255, 255),
+                  Color.fromARGB(255, 255, 110, 110),
                 ],
               );
 
@@ -37,47 +36,53 @@ class EventPage extends StatelessWidget {
           gradient: fundoEvento,
         ),
         child: SafeArea(
-          child: ListView(
-            padding: EdgeInsets.only(
-              left: 3,
-              right: 3,
-              bottom: 24,
-            ),
+          child: Column(
             children: [
-              // "AppBar" simples
-
-              // Banner
+              // Banner ocupa toda a largura, sem padding lateral
               EventBanner(imagem: evento.imagem),
 
-              const SizedBox(height: 8),
+              // Apenas espaçamento embaixo do banner
+              const SizedBox(height: 24),
 
-              // Título
-              EventTitle(title: evento.nome),
+              // Conteúdo rolável com padding lateral
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.only(
+                    left: 10,
+                    right: 10,
+                    bottom: 24,
+                  ),
+                  children: [
+                    // Título
+                    EventTitle(title: evento.nome),
 
-              const SizedBox(height: 8),
+                    const SizedBox(height: 8),
 
-              // Data / horário / local
-              EventDetailsRow(
-                data: evento.data,
-                local: evento.local,
+                    // Data / horário / local
+                    EventDetailsRow(
+                      data: evento.data,
+                      local: evento.local,
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    // Descrição
+                    EventDescription(texto: evento.descricao),
+
+                    const SizedBox(height: 16),
+
+                    // Categoria + detalhes específicos
+                    EventCategorySection(evento: evento),
+
+                    const SizedBox(height: 16),
+
+                    // Links
+                    EventLinksSection(evento: evento),
+
+                    SizedBox(height: screenHeight * 0.02),
+                  ],
+                ),
               ),
-
-              const SizedBox(height: 12),
-
-              // Descrição
-              EventDescription(texto: evento.descricao),
-
-              const SizedBox(height: 16),
-
-              // Categoria + detalhes específicos
-              EventCategorySection(evento: evento),
-
-              const SizedBox(height: 16),
-
-              // Links
-              EventLinksSection(evento: evento),
-
-              SizedBox(height: screenHeight * 0.02),
             ],
           ),
         ),
@@ -89,40 +94,43 @@ class EventPage extends StatelessWidget {
 // ---------- Banner ----------
 
 class EventBanner extends StatelessWidget {
-  final String imagem; // asset ou URL
+  final String imagem;
   const EventBanner({super.key, required this.imagem});
 
-    @override
+  @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
-    final bannerHeight =
-        (screenWidth * 0.56).clamp(280.0, 360.0);
-
+    final bannerHeight = (screenWidth * 0.56).clamp(280.0, 360.0);
     final bool isNetwork = imagem.startsWith('http');
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10.0),
+    return SizedBox(
       width: double.infinity,
       height: bannerHeight,
-      clipBehavior: Clip.hardEdge,
-      decoration: BoxDecoration(
-        color: Colors.grey[200],
-      ),
       child: Stack(
         fit: StackFit.expand,
         children: [
-          // Imagem de fundo
+          // Imagem de fundo cobrindo toda a largura
           isNetwork
-              ? Image.network(
-                  imagem,
-                  fit: BoxFit.cover,
-                )
-              : Image.asset(
-                  imagem,
-                  fit: BoxFit.cover,
-                ),
+              ? Image.network(imagem, fit: BoxFit.cover)
+              : Image.asset(imagem, fit: BoxFit.cover),
 
-          // Botão de voltar sobre o banner
+          // Gradiente branco de baixo para o centro
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.bottomCenter,
+                end: Alignment.center,
+                colors: [
+                  
+                  Colors.white,
+                  const Color.fromARGB(36, 255, 255, 255),
+                  
+                ],
+              ),
+            ),
+          ),
+
+          // Botão de voltar
           Positioned(
             top: 12,
             left: 12,
@@ -130,10 +138,7 @@ class EventBanner extends StatelessWidget {
               decoration: BoxDecoration(
                 color: Colors.white70,
                 borderRadius: BorderRadius.circular(800),
-                border: Border.all(
-                  color: const Color(0x33263238),
-                  width: 1,
-                ),
+                border: Border.all(color: const Color(0x33263238), width: 1),
               ),
               child: IconButton(
                 icon: const Icon(Icons.arrow_back),
