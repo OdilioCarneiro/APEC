@@ -23,16 +23,31 @@ exports.obterEvento = async (req, res) => {
   }
 };
 
-// Criar novo evento
+// Criar novo evento (adaptado para usar Cloudinary)
 exports.criarEvento = async (req, res) => {
   try {
-    const novoEvento = new Evento(req.body);
+    console.log('BODY:', req.body);
+    console.log('FILE:', req.file);
+
+    const dados = req.body;
+
+    // ✅ SE VEIO IMAGEM, SALVA A URL DO CLOUDINARY
+    if (req.file) {
+      dados.imagem = req.file.path; // ✅ ESSE É O LINK REAL
+    }
+
+    const novoEvento = new Evento(dados);
     await novoEvento.save();
+
     res.status(201).json(novoEvento);
   } catch (error) {
-    res.status(400).json({ erro: 'Erro ao criar evento', detalhes: error.message });
+    res.status(400).json({
+      erro: 'Erro ao criar evento',
+      detalhes: error.message,
+    });
   }
 };
+
 
 // Atualizar evento
 exports.atualizarEvento = async (req, res) => {
