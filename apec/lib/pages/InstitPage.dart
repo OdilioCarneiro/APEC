@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:apec/pages/CadasInstPage.dart';
+
 
 void main() {}
 
@@ -118,7 +120,15 @@ class LoginScreen extends StatelessWidget {
                                 borderRadius: BorderRadius.circular(20),
                               ),
                             ),
-                            onPressed: () {},
+
+                            onPressed: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (context) => const CadasInstPage(),
+                                ),
+                              );
+                            },
+                           
                             child: const Padding(
                               padding: EdgeInsets.symmetric(horizontal: 20),
                               child: Text("Cadastrar"),
