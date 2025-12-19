@@ -27,11 +27,8 @@ class _PerfilInstituicaoPageState extends State<PerfilInstituicaoPage> {
   }
 
   Future<void> _abrirCadastroEvento() async {
-    // No cadastro_evento.dart, o ideal é: context.pop(true) quando salvar
     final bool? criou = await context.push<bool>('/cadastro_evento');
-    if (criou == true) {
-      _recarregarEventos();
-    }
+    if (criou == true) _recarregarEventos();
   }
 
   @override
@@ -61,7 +58,10 @@ class _PerfilInstituicaoPageState extends State<PerfilInstituicaoPage> {
                     return const Center(child: CircularProgressIndicator());
                   }
                   if (snapshot.hasError) {
-                    return Text('Erro: ${snapshot.error}');
+                    return Center(child: Text('Erro perfil: ${snapshot.error}'));
+                  }
+                  if (!snapshot.hasData) {
+                    return const Center(child: Text('Sem dados de perfil.'));
                   }
 
                   final inst = snapshot.data!;
@@ -77,7 +77,7 @@ class _PerfilInstituicaoPageState extends State<PerfilInstituicaoPage> {
                     bio: bio,
                     fotoUrl: fotoUrl,
                     eventosFuture: _eventosFuture,
-                    onAddEvento: _abrirCadastroEvento, // <<< AGORA atualiza ao voltar
+                    onAddEvento: _abrirCadastroEvento,
                   );
                 },
               ),
@@ -116,12 +116,8 @@ class _PerfilCard extends StatelessWidget {
     return Container(
       width: cardWidth,
       padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-      ),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24)),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Container(
             width: 96,
@@ -132,33 +128,28 @@ class _PerfilCard extends StatelessWidget {
               color: Colors.grey.shade200,
             ),
             child: ClipOval(
-              child: fotoUrl == null || fotoUrl!.isEmpty
+              child: (fotoUrl == null || fotoUrl!.isEmpty)
                   ? const Center(
-                      child: Text(
-                        'IF',
-                        style: TextStyle(fontWeight: FontWeight.w800, fontSize: 28),
-                      ),
+                      child: Text('IF', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 28)),
                     )
-                  : Image.network(fotoUrl!, fit: BoxFit.cover),
+                  : Image.network(
+                      fotoUrl!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => const Center(
+                        child: Text('IF', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 28)),
+                      ),
+                    ),
             ),
           ),
           const SizedBox(height: 16),
           Text(
             nome.isEmpty ? 'Instituição' : nome,
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF263238),
-            ),
+            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: Color(0xFF263238)),
           ),
           const SizedBox(height: 4),
           Text(
             campus.isEmpty ? 'Campus/Região' : campus,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w500,
-              color: Colors.grey,
-            ),
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500, color: Colors.grey),
           ),
           const SizedBox(height: 8),
           Text(
@@ -187,17 +178,15 @@ class _SecaoEventos extends StatelessWidget {
       children: [
         Row(
           children: const [
-            Text(
-              'Eventos',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF263238)),
-            ),
+            Text('Eventos', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF263238))),
             SizedBox(width: 4),
             Icon(Icons.edit, size: 16, color: Color(0xFF263238)),
           ],
         ),
         const SizedBox(height: 8),
+
         SizedBox(
-          height: 120,
+          height: 140,
           child: FutureBuilder<List<dynamic>>(
             future: eventosFuture,
             builder: (context, snapshot) {
@@ -205,22 +194,20 @@ class _SecaoEventos extends StatelessWidget {
                 return const Center(child: CircularProgressIndicator());
               }
               if (snapshot.hasError) {
-                return Center(child: Text('Erro ao carregar eventos: ${snapshot.error}'));
+                return Center(child: Text('Erro eventos: ${snapshot.error}'));
               }
 
               final eventos = snapshot.data ?? [];
 
               return ListView.separated(
                 scrollDirection: Axis.horizontal,
-                itemCount: 1 + eventos.length, // 1 = card "+"
+                itemCount: 1 + eventos.length,
                 separatorBuilder: (_, __) => const SizedBox(width: 12),
                 itemBuilder: (context, index) {
                   if (index == 0) return _AddCard(onTap: onAddEvento);
 
                   final e = eventos[index - 1] as Map<String, dynamic>;
-                  final titulo = (e['nome'] ?? 'Evento').toString();
-
-                  return _EventoCard(title: titulo);
+                  return _EventoCard(evento: e);
                 },
               );
             },
@@ -241,7 +228,7 @@ class _AddCard extends StatelessWidget {
       onTap: onTap,
       child: Container(
         width: 260,
-        height: 120,
+        height: 140,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20),
           gradient: const LinearGradient(
@@ -267,28 +254,64 @@ class _AddCard extends StatelessWidget {
 }
 
 class _EventoCard extends StatelessWidget {
-  final String title;
-  const _EventoCard({required this.title});
+  final Map<String, dynamic> evento;
+  const _EventoCard({required this.evento});
 
   @override
   Widget build(BuildContext context) {
+    final titulo = (evento['nome'] ?? 'Evento').toString();
+
+    // Se veio populate, instituicaoId vira objeto {nome, fotoUrl}
+    final inst = evento['instituicaoId'];
+    String instNome = '';
+    String instFoto = '';
+
+    if (inst is Map<String, dynamic>) {
+      instNome = (inst['nome'] ?? '').toString();
+      instFoto = (inst['fotoUrl'] ?? '').toString();
+    }
+
     return Container(
       width: 260,
-      height: 120,
+      height: 140,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
         color: Colors.white,
         border: Border.all(color: Colors.black12),
       ),
-      child: Align(
-        alignment: Alignment.bottomLeft,
-        child: Text(
-          title,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-        ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 16,
+                backgroundColor: Colors.grey.shade300,
+                backgroundImage: instFoto.isNotEmpty ? NetworkImage(instFoto) : null,
+                child: instFoto.isEmpty
+                    ? const Icon(Icons.school, size: 16, color: Colors.black54)
+                    : null,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  instNome.isEmpty ? 'Instituição' : instNome,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                ),
+              ),
+            ],
+          ),
+          const Spacer(),
+          Text(
+            titulo,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+          ),
+        ],
       ),
     );
   }

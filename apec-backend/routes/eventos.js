@@ -3,20 +3,17 @@ const router = express.Router();
 const eventoController = require('../controllers/eventoController');
 const upload = require('../middlewares/multer');
 
-// Rotas para eventos
+// GETs específicos primeiro
 router.get('/', eventoController.listarEventos);
-router.get('/:id', eventoController.obterEvento);
-
-// ✅ ROTA POST CORRETA COM CLOUDINARY
-router.post(
-  '/',
-  upload.single('file'),
-  eventoController.criarEvento
-);
-
-router.put('/:id', eventoController.atualizarEvento);
-router.delete('/:id', eventoController.deletarEvento);
 router.get('/categoria/:categoria', eventoController.listarEventosPorCategoria);
 router.get('/instituicao/:instituicaoId', eventoController.listarEventosPorInstituicao);
+
+// POST
+router.post('/', upload.single('file'), eventoController.criarEvento);
+
+// :id por último
+router.get('/:id', eventoController.obterEvento);
+router.put('/:id', eventoController.atualizarEvento);
+router.delete('/:id', eventoController.deletarEvento);
 
 module.exports = router;
