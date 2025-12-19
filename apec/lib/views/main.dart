@@ -15,7 +15,7 @@ import 'package:apec/views/event_page.dart';
 import 'package:apec/views/home_page.dart';
 import 'package:apec/views/sport_page.dart';
 import 'package:apec/views/cultura_page.dart';
-
+import 'package:apec/views/insituit_page.dart';
 import 'package:apec/pages/CadasInstPage.dart'; 
 
 import 'package:apec/pages/components/tabview.dart'; 
@@ -50,10 +50,6 @@ final GoRouter _router = GoRouter(
       redirect: (context, state) => '/home',
     ),
 
-    GoRoute(
-      path: '/cadastro_instituicao',
-      redirect: (context, state) => '/perfil_instituicao/cadastro',
-    ),
 
     ShellRoute(
       builder: (context, state, child) => Tabview(child: child),
@@ -73,13 +69,24 @@ final GoRouter _router = GoRouter(
         ),
 
         GoRoute(
+          path: '/perfil_instituicao',
+          builder: (context, state) => const PerfilInstituicaoPage(),
+        ),
+
+         GoRoute(
+            path: '/cadastro_evento',
+            builder: (context, state) => const Cadastro(),
+            ),
+
+        GoRoute(
           path: '/login',
           builder: (context, state) => const InstitPage(),
           routes: [
             GoRoute(
-            path: '/cadastro_evento',
-            builder: (context, state) => const Cadastro(),
+              path: '/perfil_instituicao',
+              builder: (context, state) => const PerfilInstituicaoPage(),
             ),
+           
             GoRoute(
               path: '/cadastro_instituicao',
               builder: (context, state) => const CadasInstPage(),

@@ -1,22 +1,66 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
-
+import 'package:apec/services/api_service.dart';
 
 class InstitPage extends StatelessWidget {
   const InstitPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
-      debugShowCheckedModeBanner: false,
-      home: LoginScreen(),
-    );
+    // NÃO coloque MaterialApp aqui
+    return const LoginScreen();
   }
 }
 
-class LoginScreen extends StatelessWidget {
+class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
+
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  final _emailController = TextEditingController();
+  final _senhaController = TextEditingController();
+  bool _loading = false;
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _senhaController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _login() async {
+    if (_loading) return;
+
+    final emailText = _emailController.text.trim();
+    final senhaText = _senhaController.text;
+
+    if (emailText.isEmpty || senhaText.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Preencha email e senha.')),
+      );
+      return;
+    }
+
+    try {
+      setState(() => _loading = true);
+
+      await ApiService.loginInstituicao(email: emailText, senha: senhaText);
+
+      if (!mounted) return;
+      context.go('/perfil_instituicao'); // <- vai pra tela da instituição
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro no login: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -38,25 +82,21 @@ class LoginScreen extends StatelessWidget {
             builder: (context, constraints) {
               return SingleChildScrollView(
                 child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    minHeight: constraints.maxHeight,
-                  ),
+                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
                   child: IntrinsicHeight(
                     child: Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          // LOGO
-                          SvgPicture.asset(
-                            'assets/Icon.svg',
-                            height: 150,
-                          ),
+                          SvgPicture.asset('assets/Icon.svg', height: 150),
                           const SizedBox(height: 60),
 
                           // EMAIL
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 30),
                             child: TextField(
+                              controller: _emailController,
+                              keyboardType: TextInputType.emailAddress,
                               decoration: InputDecoration(
                                 hintText: "Digite o email da instituição",
                                 filled: true,
@@ -74,6 +114,7 @@ class LoginScreen extends StatelessWidget {
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 30),
                             child: TextField(
+                              controller: _senhaController,
                               obscureText: true,
                               decoration: InputDecoration(
                                 hintText: "Digite a senha",
@@ -88,7 +129,7 @@ class LoginScreen extends StatelessWidget {
                           ),
                           const SizedBox(height: 25),
 
-                          // BOTÃO LOGIN
+                          // BOTÃO LOGIN -> TELA INSTITUIÇÃO
                           SizedBox(
                             width: 200,
                             child: ElevatedButton(
@@ -98,24 +139,31 @@ class LoginScreen extends StatelessWidget {
                                   borderRadius: BorderRadius.circular(20),
                                 ),
                               ),
-                              onPressed: () {
-                                context.push('/login/cadastro_evento');
-                              },
-                              child: const Text("Login",
-                                  style: TextStyle(fontSize: 18, color: Colors.white)
-                                  ),
+                              onPressed: _loading ? null : _login,
+                              child: _loading
+                                  ? const SizedBox(
+                                      height: 18,
+                                      width: 18,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : const Text(
+                                      "Login",
+                                      style: TextStyle(fontSize: 18, color: Colors.white),
+                                    ),
                             ),
                           ),
                           const SizedBox(height: 10),
 
-                          // ESQUECEU A SENHA
                           const Text(
                             "Esqueceu a senha?",
                             style: TextStyle(color: Colors.black54),
                           ),
                           const SizedBox(height: 25),
 
-                          // BOTÃO CADASTRAR
+                          // BOTÃO CADASTRAR -> CADASTRO DE NOVA INSTITUIÇÃO
                           OutlinedButton(
                             style: OutlinedButton.styleFrom(
                               side: const BorderSide(color: Colors.lightBlue),
@@ -128,11 +176,10 @@ class LoginScreen extends StatelessWidget {
                             },
                             child: const Padding(
                               padding: EdgeInsets.symmetric(horizontal: 20),
-                              child: Text("Cadastrar", 
-                              style: TextStyle(
-                               fontSize: 18,
-                               color:  Colors.lightBlue)
-                               ),
+                              child: Text(
+                                "Cadastrar",
+                                style: TextStyle(fontSize: 18, color: Colors.lightBlue),
+                              ),
                             ),
                           ),
 

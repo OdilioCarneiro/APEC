@@ -11,72 +11,8 @@ class Cadastro extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Cadastro de Evento',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-        scaffoldBackgroundColor: const Color(0xFFF5F5F5),
-        datePickerTheme: DatePickerThemeData(
-          backgroundColor: Colors.white,
-          surfaceTintColor: Colors.transparent,
-          cancelButtonStyle: TextButton.styleFrom(
-            foregroundColor: const Color(0xFF1565C0),
-          ),
-          confirmButtonStyle: TextButton.styleFrom(
-            foregroundColor: const Color(0xFF1565C0),
-          ),
-          todayBackgroundColor: const WidgetStatePropertyAll(Colors.transparent),
-          todayForegroundColor: const WidgetStatePropertyAll(Colors.blue),
-          todayBorder: const BorderSide(color: Colors.blue),
-          dayBackgroundColor: WidgetStateProperty.resolveWith((states) {
-            if (states.contains(WidgetState.selected)) return Colors.blue;
-            return null;
-          }),
-          dayOverlayColor: WidgetStateProperty.resolveWith((states) {
-            if (states.contains(WidgetState.hovered) ||
-                states.contains(WidgetState.focused) ||
-                states.contains(WidgetState.pressed)) {
-              return Colors.blue;
-            }
-            return null;
-          }),
-        ),
-        timePickerTheme: TimePickerThemeData(
-          backgroundColor: Colors.white,
-          dayPeriodColor: Colors.blue,
-          dayPeriodTextColor: Colors.blue,
-          dialBackgroundColor: const Color.fromARGB(255, 210, 210, 210),
-          dialHandColor: const Color.fromARGB(255, 91, 181, 255),
-          dialTextColor: const Color.fromARGB(255, 0, 0, 0),
-          entryModeIconColor: Colors.blue,
-          hourMinuteColor: const Color.fromARGB(255, 210, 210, 210),
-          hourMinuteTextColor: const Color.fromARGB(255, 0, 0, 0),
-          cancelButtonStyle: TextButton.styleFrom(
-            foregroundColor: Colors.blue,
-          ),
-          confirmButtonStyle: TextButton.styleFrom(
-            foregroundColor: Colors.blue,
-          ),
-        ),
-        dropdownMenuTheme: const DropdownMenuThemeData(
-          menuStyle: MenuStyle(
-            backgroundColor: WidgetStatePropertyAll<Color>(Colors.white),
-            surfaceTintColor: WidgetStatePropertyAll<Color>(Colors.white),
-          ),
-        ),
-        textSelectionTheme: const TextSelectionThemeData(
-          cursorColor: Colors.blue,
-          selectionColor: Color(0x3390CAF9),
-          selectionHandleColor: Colors.blue,
-        ),
-        inputDecorationTheme: const InputDecorationTheme(
-          focusedBorder: UnderlineInputBorder(
-            borderSide: BorderSide(color: Colors.blue),
-          ),
-        ),
-      ),
-      home: const CadastroEventoScreen(),
-    );
+    // NÃO crie outro MaterialApp aqui (você já tem MaterialApp.router no main)
+    return const CadastroEventoScreen();
   }
 }
 
@@ -84,9 +20,9 @@ final Gradient backgroundSla = const LinearGradient(
   begin: Alignment.topCenter,
   end: Alignment.bottomCenter,
   colors: [
-    Color.fromARGB(255, 248, 161, 168), // FA4050
-    Color.fromARGB(255, 163, 219, 252), // 59B0E3
-    Color.fromARGB(255, 255, 244, 171), // F5E15F
+    Color.fromARGB(255, 248, 161, 168),
+    Color.fromARGB(255, 163, 219, 252),
+    Color.fromARGB(255, 255, 244, 171),
   ],
 );
 
@@ -114,6 +50,7 @@ class _CadastroEventoScreenState extends State<CadastroEventoScreen> {
   TimeOfDay _horaSelecionada = TimeOfDay.now();
 
   File? _selectedImage;
+  bool _loading = false;
 
   @override
   void initState() {
@@ -176,8 +113,10 @@ class _CadastroEventoScreenState extends State<CadastroEventoScreen> {
     }
   }
 
-  void _salvarEvento() async {
-    // Validação básica de campos obrigatórios
+  Future<void> _salvarEvento() async {
+    if (_loading) return;
+
+    // Validação básica
     if (_categoriaSelecionada == null) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -194,15 +133,23 @@ class _CadastroEventoScreenState extends State<CadastroEventoScreen> {
       return;
     }
 
-    // NÃO valida mais a imagem (agora é opcional)
-
-    try {
+    // >>> PEGA instituicaoId SALVO NO LOGIN
+    final instituicaoId = await ApiService.lerInstituicaoId();
+    if (instituicaoId == null || instituicaoId.isEmpty) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Salvando evento...')),
+        const SnackBar(
+          content: Text('Você precisa estar logado como instituição para criar evento.'),
+          backgroundColor: Colors.red,
+        ),
       );
+      return;
+    }
 
-      // Monta os dados (Map<String, dynamic> para aceitar null/outros tipos se precisar)
+    try {
+      setState(() => _loading = true);
+
+      // Monta os dados
       final dados = <String, dynamic>{
         'nome': _nomeController.text,
         'categoria': _categoriaSelecionada!.name,
@@ -210,6 +157,9 @@ class _CadastroEventoScreenState extends State<CadastroEventoScreen> {
         'data': _dataSelecionada.toIso8601String().substring(0, 10),
         'horario': _formatHora(_horaSelecionada),
         'local': _localController.text,
+
+        // >>> AQUI: manda pro backend gravar no Evento
+        'instituicaoId': instituicaoId,
       };
 
       if (_categoriaSelecionada == Categoria.esportiva) {
@@ -230,15 +180,14 @@ class _CadastroEventoScreenState extends State<CadastroEventoScreen> {
             .map((e) => e.trim())
             .where((e) => e.isNotEmpty)
             .toList();
-        // Se quiser mandar array no JSON ou string no Multipart, 
-        // o ideal é mandar string (separada por ;) para simplificar o Multipart
-        dados['artistas'] = artistas.join(';'); 
+
+        // manda como string (simples pro multipart)
+        dados['artistas'] = artistas.join(';');
       }
 
-      // Chama o método inteligente
-      final response = await ApiService.criarEventoSmart(
+      await ApiService.criarEventoSmart(
         dados: dados,
-        imagem: _selectedImage, // passa a imagem (pode ser null)
+        imagem: _selectedImage,
       );
 
       if (!mounted) return;
@@ -250,7 +199,7 @@ class _CadastroEventoScreenState extends State<CadastroEventoScreen> {
         ),
       );
 
-      // Limpa formulário
+      // limpa e volta
       _nomeController.clear();
       _descricaoController.clear();
       _localController.clear();
@@ -258,6 +207,7 @@ class _CadastroEventoScreenState extends State<CadastroEventoScreen> {
       _temaController.clear();
       _artistasController.clear();
       _horarioController.clear();
+
       setState(() {
         _categoriaSelecionada = null;
         _categoriaEsportivaSelecionada = null;
@@ -268,9 +218,8 @@ class _CadastroEventoScreenState extends State<CadastroEventoScreen> {
         _horaSelecionada = TimeOfDay.now();
       });
 
-      if (mounted) {
-        context.pop(response);
-      }
+      // >>> retorna true pra página anterior poder dar refresh
+      context.pop(true);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -279,17 +228,16 @@ class _CadastroEventoScreenState extends State<CadastroEventoScreen> {
           backgroundColor: Colors.red,
         ),
       );
+    } finally {
+      if (mounted) setState(() => _loading = false);
     }
   }
-
-
 
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
     final screenWidth = size.width;
 
-    // largura máxima do formulário para não esticar demais em telas grandes
     final double maxFormWidth = 500;
     final double horizontalPadding = screenWidth * 0.04;
 
@@ -303,9 +251,7 @@ class _CadastroEventoScreenState extends State<CadastroEventoScreen> {
       ),
       child: Center(
         child: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxWidth: maxFormWidth,
-          ),
+          constraints: BoxConstraints(maxWidth: maxFormWidth),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(10),
             child: Scaffold(
@@ -316,67 +262,55 @@ class _CadastroEventoScreenState extends State<CadastroEventoScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const SizedBox(height: 20),
-                    Transform.translate(
-                      offset: const Offset(5, -10),
-                      child: const Text(
-                        'Foto do Evento',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontFamily: 'RobotoLight',
-                          color: Colors.grey,
-                        ),
+
+                    const Text(
+                      'Foto do Evento',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontFamily: 'RobotoLight',
+                        color: Colors.grey,
                       ),
                     ),
+                    const SizedBox(height: 8),
+
                     GestureDetector(
                       onTap: _pickPhoto,
-                      child: Transform.translate(
-                        offset: const Offset(0, -10),
-                        child: AspectRatio(
-                          aspectRatio: 16 / 9,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: Colors.grey[200],
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: const Color.fromARGB(255, 126, 126, 126),
-                                width: 2,
-                              ),
+                      child: AspectRatio(
+                        aspectRatio: 16 / 9,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.grey[200],
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: const Color.fromARGB(255, 126, 126, 126),
+                              width: 2,
                             ),
-                            child: _selectedImage == null
-                                ? Center(
-                                    child: Column(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        Icon(
-                                          Icons.add_a_photo_rounded,
-                                          size: 70,
-                                          color: Colors.grey[400],
-                                        ),
-                                        const SizedBox(height: 0),
-                                      ],
-                                    ),
-                                  )
-                                : ClipRRect(
-                                    borderRadius: BorderRadius.circular(6),
-                                    child: Image.file(
-                                      _selectedImage!,
-                                      width: double.infinity,
-                                      height: double.infinity,
-                                      fit: BoxFit.cover,
-                                    ),
-                                  ),
                           ),
+                          child: _selectedImage == null
+                              ? Center(
+                                  child: Icon(
+                                    Icons.add_a_photo_rounded,
+                                    size: 70,
+                                    color: Colors.grey[400],
+                                  ),
+                                )
+                              : ClipRRect(
+                                  borderRadius: BorderRadius.circular(6),
+                                  child: Image.file(
+                                    _selectedImage!,
+                                    width: double.infinity,
+                                    height: double.infinity,
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
                         ),
                       ),
                     ),
+
+                    const SizedBox(height: 14),
+
                     TextFormField(
                       controller: _nomeController,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please enter some text';
-                        }
-                        return null;
-                      },
                       decoration: InputDecoration(
                         labelText: 'Nome do Evento',
                         labelStyle: const TextStyle(
@@ -389,15 +323,10 @@ class _CadastroEventoScreenState extends State<CadastroEventoScreen> {
                           fontFamily: 'RobotoMedium',
                           fontSize: 16,
                         ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
-                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(7.0),
-                          borderSide: const BorderSide(
-                            color: Color.fromARGB(255, 83, 83, 83),
-                          ),
+                          borderSide: const BorderSide(color: Color.fromARGB(255, 83, 83, 83)),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(7.0),
@@ -408,7 +337,9 @@ class _CadastroEventoScreenState extends State<CadastroEventoScreen> {
                         ),
                       ),
                     ),
+
                     const SizedBox(height: 14),
+
                     SizedBox(
                       height: 140,
                       child: DottedBorder(
@@ -425,232 +356,91 @@ class _CadastroEventoScreenState extends State<CadastroEventoScreen> {
                             expands: true,
                             maxLines: null,
                             minLines: null,
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Please enter some text';
-                              }
-                              return null;
-                            },
                             decoration: const InputDecoration(
                               labelText: 'Descrição/Sinopse',
-                              labelStyle: TextStyle(
-                                fontSize: 16,
-                                fontFamily: 'RobotoMedium',
-                                color: Color.fromARGB(221, 151, 151, 151),
-                              ),
-                              floatingLabelStyle: TextStyle(
-                                color: Color.fromARGB(255, 77, 168, 221),
-                                fontFamily: 'RobotoMedium',
-                                fontSize: 16,
-                              ),
                               border: InputBorder.none,
-                              enabledBorder: InputBorder.none,
-                              focusedBorder: InputBorder.none,
-                              contentPadding:
-                                  EdgeInsets.symmetric(horizontal: 1, vertical: 1),
+                              contentPadding: EdgeInsets.symmetric(horizontal: 1, vertical: 1),
                             ),
                           ),
                         ),
                       ),
                     ),
+
                     const SizedBox(height: 14),
+
                     DropdownMenu<Categoria>(
                       label: const Text('Categoria'),
                       initialSelection: _categoriaSelecionada,
                       onSelected: (c) => setState(() => _categoriaSelecionada = c),
                       width: maxFormWidth,
                       dropdownMenuEntries: Categoria.values
-                          .map(
-                            (c) => DropdownMenuEntry<Categoria>(
-                              value: c,
-                              label: c.name,
-                            ),
-                          )
+                          .map((c) => DropdownMenuEntry<Categoria>(value: c, label: c.name))
                           .toList(),
                     ),
+
                     const SizedBox(height: 14),
+
                     if (_categoriaSelecionada == Categoria.esportiva) ...[
                       DropdownMenu<CategoriEspotiva>(
                         label: const Text('Tipo esportivo'),
                         initialSelection: _categoriaEsportivaSelecionada,
-                        onSelected: (c) =>
-                            setState(() => _categoriaEsportivaSelecionada = c),
+                        onSelected: (c) => setState(() => _categoriaEsportivaSelecionada = c),
                         width: maxFormWidth,
                         dropdownMenuEntries: CategoriEspotiva.values
-                            .map(
-                              (c) => DropdownMenuEntry<CategoriEspotiva>(
-                                value: c,
-                                label: c.name,
-                              ),
-                            )
+                            .map((c) => DropdownMenuEntry<CategoriEspotiva>(value: c, label: c.name))
                             .toList(),
                       ),
                       const SizedBox(height: 14),
                       DropdownMenu<Genero>(
                         label: const Text('Gênero'),
                         initialSelection: _generoSelecionado,
-                        onSelected: (g) =>
-                            setState(() => _generoSelecionado = g),
+                        onSelected: (g) => setState(() => _generoSelecionado = g),
                         width: maxFormWidth,
                         dropdownMenuEntries: Genero.values
-                            .map(
-                              (g) => DropdownMenuEntry<Genero>(
-                                value: g,
-                                label: g.name,
-                              ),
-                            )
+                            .map((g) => DropdownMenuEntry<Genero>(value: g, label: g.name))
                             .toList(),
                       ),
                     ],
+
                     if (_categoriaSelecionada == Categoria.cultural) ...[
                       TextFormField(
                         controller: _temaController,
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please enter some text';
-                          }
-                          return null;
-                        },
-                        decoration: InputDecoration(
-                          labelText: 'Tema',
-                          labelStyle: const TextStyle(
-                            fontSize: 16,
-                            fontFamily: 'RobotoMedium',
-                            color: Color.fromARGB(221, 151, 151, 151),
-                          ),
-                          floatingLabelStyle: const TextStyle(
-                            color: Color.fromARGB(255, 77, 168, 221),
-                            fontFamily: 'RobotoMedium',
-                            fontSize: 16,
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(7.0),
-                            borderSide: const BorderSide(
-                              color: Color.fromARGB(255, 83, 83, 83),
-                            ),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(7.0),
-                            borderSide: const BorderSide(
-                              color: Color.fromARGB(255, 77, 168, 221),
-                              width: 2,
-                            ),
-                          ),
-                        ),
+                        decoration: const InputDecoration(labelText: 'Tema'),
                       ),
                       const SizedBox(height: 14),
                       DropdownMenu<CategoriaCultural>(
                         label: const Text('Tipo cultural'),
                         initialSelection: _categoriaCulturalSelecionada,
-                        onSelected: (c) =>
-                            setState(() => _categoriaCulturalSelecionada = c),
+                        onSelected: (c) => setState(() => _categoriaCulturalSelecionada = c),
                         width: maxFormWidth,
                         dropdownMenuEntries: CategoriaCultural.values
-                            .map(
-                              (c) => DropdownMenuEntry<CategoriaCultural>(
-                                value: c,
-                                label: c.name,
-                              ),
-                            )
+                            .map((c) => DropdownMenuEntry<CategoriaCultural>(value: c, label: c.name))
                             .toList(),
                       ),
                       const SizedBox(height: 14),
                       TextFormField(
                         controller: _artistasController,
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please enter some text';
-                          }
-                          return null;
-                        },
-                        decoration: InputDecoration(
-                          labelText: 'Artistas (separe por ";")',
-                          labelStyle: const TextStyle(
-                            fontSize: 16,
-                            fontFamily: 'RobotoMedium',
-                            color: Color.fromARGB(221, 151, 151, 151),
-                          ),
-                          floatingLabelStyle: const TextStyle(
-                            color: Color.fromARGB(255, 77, 168, 221),
-                            fontFamily: 'RobotoMedium',
-                            fontSize: 16,
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(7.0),
-                            borderSide: const BorderSide(
-                              color: Color.fromARGB(255, 83, 83, 83),
-                            ),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(7.0),
-                            borderSide: const BorderSide(
-                              color: Color.fromARGB(255, 77, 168, 221),
-                              width: 2,
-                            ),
-                          ),
-                        ),
+                        decoration: const InputDecoration(labelText: 'Artistas (separe por ";")'),
                       ),
                     ],
+
                     const SizedBox(height: 14),
+
                     TextFormField(
                       controller: _localController,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please enter some text';
-                        }
-                        return null;
-                      },
-                      decoration: InputDecoration(
-                        labelText: 'Local',
-                        labelStyle: const TextStyle(
-                          fontSize: 16,
-                          fontFamily: 'RobotoMedium',
-                          color: Color.fromARGB(221, 151, 151, 151),
-                        ),
-                        floatingLabelStyle: const TextStyle(
-                          color: Color.fromARGB(255, 77, 168, 221),
-                          fontFamily: 'RobotoMedium',
-                          fontSize: 16,
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(7.0),
-                          borderSide: const BorderSide(
-                            color: Color.fromARGB(255, 83, 83, 83),
-                          ),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(7.0),
-                          borderSide: const BorderSide(
-                            color: Color.fromARGB(255, 77, 168, 221),
-                            width: 2,
-                          ),
-                        ),
-                      ),
+                      decoration: const InputDecoration(labelText: 'Local'),
                     ),
+
                     const SizedBox(height: 14),
+
                     GestureDetector(
                       onTap: () => _selectDate(context),
                       child: Container(
                         height: 50,
                         decoration: BoxDecoration(
-                          color: const Color.fromARGB(255, 255, 255, 255),
+                          color: Colors.white,
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: const Color.fromARGB(255, 85, 85, 85),
-                            width: 1,
-                          ),
+                          border: Border.all(color: const Color.fromARGB(255, 85, 85, 85)),
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -659,7 +449,6 @@ class _CadastroEventoScreenState extends State<CadastroEventoScreen> {
                               padding: const EdgeInsets.all(8.0),
                               child: Text(
                                 "Data: ${_dataSelecionada.day.toString().padLeft(2, '0')}/${_dataSelecionada.month.toString().padLeft(2, '0')}/${_dataSelecionada.year}",
-                                style: const TextStyle(fontFamily: 'Roboto'),
                               ),
                             ),
                             const Padding(
@@ -670,28 +459,24 @@ class _CadastroEventoScreenState extends State<CadastroEventoScreen> {
                         ),
                       ),
                     ),
+
                     const SizedBox(height: 14),
+
                     GestureDetector(
                       onTap: () => _selectTime(context),
                       child: Container(
                         height: 50,
                         decoration: BoxDecoration(
-                          color: const Color.fromARGB(255, 255, 255, 255),
+                          color: Colors.white,
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: const Color.fromARGB(255, 85, 85, 85),
-                            width: 1,
-                          ),
+                          border: Border.all(color: const Color.fromARGB(255, 85, 85, 85)),
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Padding(
                               padding: const EdgeInsets.all(8.0),
-                              child: Text(
-                                'Hora: ${_formatHora(_horaSelecionada)}',
-                                style: const TextStyle(fontFamily: 'Roboto'),
-                              ),
+                              child: Text('Hora: ${_formatHora(_horaSelecionada)}'),
                             ),
                             const Padding(
                               padding: EdgeInsets.all(8.0),
@@ -701,65 +486,62 @@ class _CadastroEventoScreenState extends State<CadastroEventoScreen> {
                         ),
                       ),
                     ),
+
                     const SizedBox(height: 24),
-                   SizedBox(
-                    width: double.infinity,
-                    height: 52,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color.fromARGB(255, 81, 191, 255),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(50),
-                          side: const BorderSide(
-                            color: Color.fromARGB(255, 69, 178, 241),
-                            width: 2,
+
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color.fromARGB(255, 81, 191, 255),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(50),
+                            side: const BorderSide(
+                              color: Color.fromARGB(255, 69, 178, 241),
+                              width: 2,
+                            ),
+                          ),
+                        ),
+                        onPressed: _loading ? null : _salvarEvento,
+                        child: Text(
+                          _loading ? 'Salvando...' : 'Salvar Evento',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontFamily: 'RobotoBold',
                           ),
                         ),
                       ),
-                      onPressed: _salvarEvento,
-                      child: const Text(
-                        'Salvar Evento',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontFamily: 'RobotoBold',
-                        ),
-                      ),
                     ),
-                  ),
 
-                  const SizedBox(height: 10),
+                    const SizedBox(height: 10),
 
-                  SizedBox(
-                    width: double.infinity,
-                    height: 52,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color.fromARGB(255, 255, 81, 81),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(50),
-                          side: const BorderSide(
-                            color: Color.fromARGB(255, 241, 69, 69),
-                            width: 2,
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color.fromARGB(255, 255, 81, 81),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(50),
+                            side: const BorderSide(
+                              color: Color.fromARGB(255, 241, 69, 69),
+                              width: 2,
+                            ),
+                          ),
+                        ),
+                        onPressed: () => context.pop(false),
+                        child: const Text(
+                          'Cancelar',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontFamily: 'RobotoBold',
                           ),
                         ),
                       ),
-                      onPressed: () {
-                        context.pop();
-                      },
-                      child: const Text(
-                        'Cancelar',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontFamily: 'RobotoBold',
-                        ),
-                      ),
                     ),
-                  ),
-
-
-                    
                   ],
                 ),
               ),
@@ -767,18 +549,6 @@ class _CadastroEventoScreenState extends State<CadastroEventoScreen> {
           ),
         ),
       ),
-    );
-  }
-
-  Widget inputCard({required Widget child}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade300, width: 0.5),
-      ),
-      child: child,
     );
   }
 }

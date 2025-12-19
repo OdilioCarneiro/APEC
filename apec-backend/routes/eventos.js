@@ -17,5 +17,6 @@ router.post(
 router.put('/:id', eventoController.atualizarEvento);
 router.delete('/:id', eventoController.deletarEvento);
 router.get('/categoria/:categoria', eventoController.listarEventosPorCategoria);
+router.get('/instituicao/:instituicaoId', eventoController.listarEventosPorInstituicao);
 
 module.exports = router;

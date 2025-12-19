@@ -10,14 +10,28 @@ class PerfilInstituicaoPage extends StatefulWidget {
 }
 
 class _PerfilInstituicaoPageState extends State<PerfilInstituicaoPage> {
-  late final Future<Map<String, dynamic>> _perfilFuture;
-  late final Future<List<dynamic>> _eventosFuture;
+  late Future<Map<String, dynamic>> _perfilFuture;
+  late Future<List<dynamic>> _eventosFuture;
 
   @override
   void initState() {
     super.initState();
     _perfilFuture = ApiService.minhaInstituicao();
     _eventosFuture = ApiService.meusEventos();
+  }
+
+  void _recarregarEventos() {
+    setState(() {
+      _eventosFuture = ApiService.meusEventos();
+    });
+  }
+
+  Future<void> _abrirCadastroEvento() async {
+    // No cadastro_evento.dart, o ideal é: context.pop(true) quando salvar
+    final bool? criou = await context.push<bool>('/cadastro_evento');
+    if (criou == true) {
+      _recarregarEventos();
+    }
   }
 
   @override
@@ -51,11 +65,10 @@ class _PerfilInstituicaoPageState extends State<PerfilInstituicaoPage> {
                   }
 
                   final inst = snapshot.data!;
-                  // ajuste chaves conforme seu backend:
                   final nome = (inst['nome'] ?? '').toString();
                   final campus = (inst['campus'] ?? '').toString();
                   final bio = (inst['bio'] ?? '').toString();
-                  final fotoUrl = inst['fotoUrl']?.toString(); // opcional
+                  final fotoUrl = inst['fotoUrl']?.toString();
 
                   return _PerfilCard(
                     horizontalPadding: horizontalPadding,
@@ -64,7 +77,7 @@ class _PerfilInstituicaoPageState extends State<PerfilInstituicaoPage> {
                     bio: bio,
                     fotoUrl: fotoUrl,
                     eventosFuture: _eventosFuture,
-                    onAddEvento: () => context.push('/cadastro'), // troque pela rota do cadastro_eventos
+                    onAddEvento: _abrirCadastroEvento, // <<< AGORA atualiza ao voltar
                   );
                 },
               ),
@@ -103,11 +116,13 @@ class _PerfilCard extends StatelessWidget {
     return Container(
       width: cardWidth,
       padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24)),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // Logo / foto
           Container(
             width: 96,
             height: 96,
@@ -127,30 +142,31 @@ class _PerfilCard extends StatelessWidget {
                   : Image.network(fotoUrl!, fit: BoxFit.cover),
             ),
           ),
-
           const SizedBox(height: 16),
-
           Text(
             nome.isEmpty ? 'Instituição' : nome,
-            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: Color(0xFF263238)),
+            style: const TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF263238),
+            ),
           ),
           const SizedBox(height: 4),
-
           Text(
             campus.isEmpty ? 'Campus/Região' : campus,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500, color: Colors.grey),
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w500,
+              color: Colors.grey,
+            ),
           ),
-
           const SizedBox(height: 8),
-
           Text(
             bio.isEmpty ? 'Sem biografia.' : bio,
             textAlign: TextAlign.center,
             style: const TextStyle(fontSize: 13, height: 1.3, color: Color(0xFF757575)),
           ),
-
           const SizedBox(height: 24),
-
           _SecaoEventos(eventosFuture: eventosFuture, onAddEvento: onAddEvento),
         ],
       ),
@@ -180,7 +196,6 @@ class _SecaoEventos extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 8),
-
         SizedBox(
           height: 120,
           child: FutureBuilder<List<dynamic>>(
@@ -188,6 +203,9 @@ class _SecaoEventos extends StatelessWidget {
             builder: (context, snapshot) {
               if (snapshot.connectionState != ConnectionState.done) {
                 return const Center(child: CircularProgressIndicator());
+              }
+              if (snapshot.hasError) {
+                return Center(child: Text('Erro ao carregar eventos: ${snapshot.error}'));
               }
 
               final eventos = snapshot.data ?? [];
@@ -197,9 +215,7 @@ class _SecaoEventos extends StatelessWidget {
                 itemCount: 1 + eventos.length, // 1 = card "+"
                 separatorBuilder: (_, __) => const SizedBox(width: 12),
                 itemBuilder: (context, index) {
-                  if (index == 0) {
-                    return _AddCard(onTap: onAddEvento);
-                  }
+                  if (index == 0) return _AddCard(onTap: onAddEvento);
 
                   final e = eventos[index - 1] as Map<String, dynamic>;
                   final titulo = (e['nome'] ?? 'Evento').toString();

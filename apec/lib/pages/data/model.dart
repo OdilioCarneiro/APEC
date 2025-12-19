@@ -4,10 +4,14 @@ class Instituicao {
   String? nome;
   String? descricao;
   String imagem;
+  String email;
+  String senha;
   Instituicao({
     this.nome,
     this.descricao,
     required this.imagem,
+    required this.email,
+    required this.senha,
   });
 
   // Função toMap para MongoDB
@@ -16,6 +20,8 @@ class Instituicao {
       'nome': nome,
       'descricao': descricao,
       'imagem': imagem,
+      'email': email,
+      'senha': senha,
     };
   }
 }

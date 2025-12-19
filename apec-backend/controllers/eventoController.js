@@ -89,3 +89,48 @@ exports.listarEventosPorCategoria = async (req, res) => {
     res.status(500).json({ erro: 'Erro ao listar eventos por categoria', detalhes: error.message });
   }
 };
+
+const Evento = require('../models/Evento');
+
+exports.criarEvento = async (req, res) => {
+  try {
+    console.log('BODY:', req.body);
+    console.log('FILE:', req.file);
+
+    const dados = { ...req.body };
+
+    // validação mínima
+    if (!dados.nome || !dados.categoria || !dados.data || !dados.horario || !dados.local) {
+      return res.status(400).json({ erro: 'Campos obrigatórios faltando' });
+    }
+
+    // >>> obrigatório para aparecer nos eventos da instituição
+    if (!dados.instituicaoId) {
+      return res.status(400).json({ erro: 'instituicaoId é obrigatório' });
+    }
+
+    // imagem do cloudinary/multer
+    if (req.file) {
+      dados.imagem = req.file.path;
+    }
+
+    const novoEvento = new Evento(dados);
+    await novoEvento.save();
+
+    res.status(201).json(novoEvento);
+  } catch (error) {
+    res.status(400).json({ erro: 'Erro ao criar evento', detalhes: error.message });
+  }
+
+  exports.listarEventosPorInstituicao = async (req, res) => {
+  try {
+    const { instituicaoId } = req.params;
+    const eventos = await Evento.find({ instituicaoId }).sort({ data: 1 });
+    res.json(eventos);
+  } catch (error) {
+    res.status(500).json({ erro: 'Erro ao listar eventos da instituição', detalhes: error.message });
+  }
+};
+
+};
+

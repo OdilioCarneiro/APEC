@@ -66,6 +66,13 @@ const eventoSchema = new mongoose.Schema(
       type: Date,
       default: Date.now,
     },
+
+    instituicaoId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Instituicao',
+      required: false, // pode colocar true quando você tiver login obrigatório
+    },
+
   },
   {
     timestamps: true,
