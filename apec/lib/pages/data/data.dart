@@ -34,190 +34,88 @@ List<UnbordingContent> contentsList = [
   ),
 ];
 
-
-
-class Instituicao {
-  String nome;
-  String descricao;
-  String? imagem;
-  Instituicao({
-    required this.nome,
-    required this.descricao,
-    this.imagem,
+class CardContent {
+  String image;
+  String title;
+  Color backgroundColor;
+  CardContent({
+    required this.image,
+    required this.title,
+    required this.backgroundColor,
   });
-
-  // Função toMap para MongoDB
-  Map<String, dynamic> toMap() {
-    return {
-      'nome': nome,
-      'descricao': descricao,
-      'imagem': imagem,
-    };
-  }
 }
 
+List<CardContent> cardContent = [
 
-enum Genero {
-  masculino,
-  feminino,
-  outros
-}
+CardContent(
+  image: 'assets/dance.svg',
+  title: 'Dança',
+  backgroundColor: const Color.fromARGB(255, 19, 86, 140),
+),
 
-enum CategoriEspotiva {
-  futebol,
-  basquete,
-  voleibol,
-  corrida,
-  ciclismo,
-  carimba,
-  natacao,
-  artesMarciais,
-  ginastica,
-  tenis
-}
+CardContent(
+  image: 'assets/music.svg',
+  title: 'Música',
+  backgroundColor: const Color.fromARGB(255, 140, 19, 19),
+),
 
-enum Categoria {
-   esportiva, 
-   cultural
-}
+CardContent(
+  image: 'assets/paint.svg',
+  title: 'Exposições',
+  backgroundColor: const Color.fromARGB(255, 136, 140, 19),
+),
 
-class Evento {
-  String nome;
-  Categoria categoria;
-  String descricao;
-  String data;
-  String imagem;
-  String  local;
+CardContent(
+  image: 'assets/theater.svg',
+  title: 'Cinema/Teatro',
+  backgroundColor: const Color.fromARGB(255, 140, 19, 19),
+),
 
-  //campo só para eventos esportivos
-  CategoriEspotiva? categoriaEsportiva;
-  Genero? genero;
-  Jogo? jogo;
-  JogoNatacao? jogoNatacao;
-
-  //campo só para eventos culturais
-  String? tema;
-  CategoriaCultural? categoriaCultural;
-  List<String>? artistas;
-
-  //campo para ambos os tipos de evento
-  Uri? linkInscricao;
-  Uri? linkTransmissao;
-  Uri? linkResultados;
-  Uri? linkFotos;
+CardContent(
+  image: 'assets/books.svg',
+  title: 'Literatura',
+  backgroundColor: const Color.fromARGB(255, 19, 86, 140),
+)
+];
 
 
-  Evento({
-    required this.nome,
-    required this.categoria,
-    required this.descricao,
-    required this.data,
-    required this.local,
-    required this.imagem,
-    this.categoriaEsportiva,
-    this.genero,    
-    this.jogo,
-    this.jogoNatacao,
-    this.tema,
-    this.categoriaCultural,
-    this.artistas,
-    this.linkInscricao,
-    this.linkTransmissao,
-    this.linkResultados,
-    this.linkFotos,
+class CardContentsport {
+  String image;
+  String title;
+  Color backgroundColor;
+  CardContentsport({
+    required this.image,
+    required this.title,
+    required this.backgroundColor,
   });
-
-  Map<String, dynamic> toMap(){
-    return{
-      'nome': nome,
-      'categoria': categoria.name,
-      'descricao': descricao,
-      'data': data,
-      'imagem': imagem,
-      'local': local,
-      'categoriaEsportiva': categoriaEsportiva?.name,
-      'genero': genero?.name,
-      'jogo': jogo?.toMap(),
-      'jogoNatacao': jogoNatacao?.toMap(),
-      'tema': tema,
-      'categoriaCultural': categoriaCultural?.name,
-      'artistas': artistas,  
-      'linkInscricao': linkInscricao?.toString(),  
-      'linkTransmissao': linkTransmissao?.toString(),
-      'linkResultados': linkResultados?.toString(),
-      'linkFotos': linkFotos?.toString(),
-    };
-  }
 }
 
-//classe para eventos esportivos
-class Jogo{
-  String timeA;
-  String timeB;
-  int placarA;
-  int placarB;
-  String data;
-  String local;
+List<CardContentsport> cardContentsport = [
 
-  Jogo({
-    required this.timeA,
-    required this.timeB,
-    required this.placarA,
-    required this.placarB,
-    required this.data,
-    required this.local,
-  });
+CardContentsport(
+  image: 'assets/nado.svg',
+  title: 'Natação',
+  backgroundColor: const Color.fromARGB(255, 19, 86, 140),
+),
 
-  Map<String, dynamic> toMap(){
-    return{
-      'timeA': timeA,
-      'timeB': timeB,
-      'placarA': placarA,
-      'placarB': placarB,
-      'data': data,
-      'local': local,
-    };
-  }
-}
-enum ModalidadeNatacao {
-  crawl,
-  costas,
-  peito,
-  borboleta,
-  medley
-}
+CardContentsport(
+  image: 'assets/basket.svg',
+  title: 'Basquete',
+  backgroundColor: const Color.fromARGB(255, 140, 19, 19),
+),
 
-class JogoNatacao{
-  String atleta;
-  ModalidadeNatacao modalidade;
-  String tempo;
-  String data;
+CardContentsport(
+  image: 'assets/volley.svg',
+  title: 'Vôlei',
+  backgroundColor: const Color.fromARGB(255, 136, 140, 19),
+),
 
-  JogoNatacao({
-    required this.atleta,
-    required this.modalidade,
-    required this.tempo,
-    required this.data,
-  });
+CardContentsport(
+  image: 'assets/handbol.svg',
+  title: 'Handeboll',
+  backgroundColor: const Color.fromARGB(255, 140, 19, 19),
+),
+];
 
-  Map<String, dynamic> toMap() {
-    return {
-      'atleta': atleta,
-      'modalidade': modalidade.name, 
-      'tempo': tempo,
-      'data': data,
-    };
-  }
-}
-// final da classe para eventos esportivos
 
-//classe para eventos culturais
-enum CategoriaCultural {
-  musica,
-  teatro,
-  danca,
-  exposicao,
-  cinema,
-  literatura
-}
-//final da classe para eventos culturais
+
