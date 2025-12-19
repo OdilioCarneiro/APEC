@@ -1,257 +1,374 @@
-import 'dart:io'; 
+import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart'; 
+import 'package:image_picker/image_picker.dart';
+import 'package:dotted_border/dotted_border.dart';
+import 'package:apec/services/api_service.dart';
+import 'package:go_router/go_router.dart'; // NECESSÁRIO pro context.pop()
+
+final Gradient backgroundSla = const LinearGradient(
+  begin: Alignment.topCenter,
+  end: Alignment.bottomCenter,
+  colors: [
+    Color.fromARGB(255, 248, 161, 168),
+    Color.fromARGB(255, 163, 219, 252),
+    Color.fromARGB(255, 255, 244, 171),
+  ],
+);
 
 class CadasInstPage extends StatefulWidget {
   const CadasInstPage({super.key});
 
   @override
-  State<CadasInstPage> createState() => CadastroInstPage();
+  State<CadasInstPage> createState() => _CadasInstPageState();
 }
 
-class CadastroInstPage extends State<CadasInstPage> {
-  // Chave global para o formulário (útil para validação)
+class _CadasInstPageState extends State<CadasInstPage> {
   final _formKey = GlobalKey<FormState>();
 
-  // --- LÓGICA DE SELEÇÃO DE IMAGEM ---
-  File? _imageFile; // Variável para armazenar o arquivo de imagem selecionado
-  final _picker = ImagePicker(); // Objeto para selecionar a imagem
+  final _nomeInstController = TextEditingController();
+  final _campusController = TextEditingController();
+  final _bioController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _senhaController = TextEditingController();
+  final _confirmarSenhaController = TextEditingController();
 
-  // Função para selecionar a imagem da galeria
-  Future<void> _pickImage() async {
-    final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
-    
-    if (pickedFile != null) {
-      // Atualiza o estado da tela com a nova imagem
-      setState(() {
-        _imageFile = File(pickedFile.path);
-      });
-    }
+  File? _imageFile;
+  final ImagePicker _picker = ImagePicker();
+  bool _loading = false;
+
+  @override
+  void dispose() {
+    _nomeInstController.dispose();
+    _campusController.dispose();
+    _bioController.dispose();
+    _emailController.dispose();
+    _senhaController.dispose();
+    _confirmarSenhaController.dispose();
+    super.dispose();
   }
-  // ------------------------------------
 
+  Future<void> _pickImage() async {
+    final picked = await _picker.pickImage(source: ImageSource.gallery);
+    if (picked == null) return;
+    setState(() => _imageFile = File(picked.path));
+  }
 
-  // Função auxiliar para padronizar o visual dos campos de texto
-  InputDecoration _inputDecoration(String hint) {
-    return InputDecoration(
-      hintText: hint,
-      hintStyle: const TextStyle(color: Colors.grey),
-      // Borda padrão
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10.0),
-        borderSide: BorderSide(color: Colors.grey.shade300),
-      ),
-      // Borda quando o campo está habilitado
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10.0),
-        borderSide: BorderSide(color: Colors.grey.shade300),
-      ),
-      // Borda quando o campo está em foco
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10.0),
-        // Cor corrigida: const Color.fromARGB(255, 41, 182, 246) é uma aproximação de lightBlue.shade400
-        borderSide: const BorderSide(color: Color.fromARGB(255, 41, 182, 246), width: 2.0),
-      ),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+  void _snack(String msg, {Color? bg}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg), backgroundColor: bg),
     );
   }
 
-  // Widget de Avatar de Perfil (MODIFICADO)
+  InputDecoration _fieldDecoration(String hint) {
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: const TextStyle(color: Colors.grey, fontSize: 13),
+      filled: true,
+      fillColor: Colors.white,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(color: Colors.grey.shade400, width: 1),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(
+          color: Color.fromARGB(255, 81, 191, 255),
+          width: 2,
+        ),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: Colors.red, width: 1),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: Colors.red, width: 2),
+      ),
+    );
+  }
+
+  Future<void> _cadastrar() async {
+    if (_loading) return;
+    if (!_formKey.currentState!.validate()) return;
+
+    if (_senhaController.text != _confirmarSenhaController.text) {
+      _snack('As senhas não coincidem.');
+      return;
+    }
+
+    try {
+      setState(() => _loading = true);
+      _snack('Cadastrando...');
+
+      final dados = <String, dynamic>{
+        'nome': _nomeInstController.text.trim(),
+        'campus': _campusController.text.trim(),
+        'bio': _bioController.text.trim(),
+        'email': _emailController.text.trim(),
+        'senha': _senhaController.text,
+      };
+
+      await ApiService.cadastrarInstituicaoSmart(
+        dados: dados,
+        imagem: _imageFile,
+      );
+
+      if (!mounted) return;
+
+      _snack('Cadastro realizado com sucesso!', bg: Colors.green);
+
+      _nomeInstController.clear();
+      _campusController.clear();
+      _bioController.clear();
+      _emailController.clear();
+      _senhaController.clear();
+      _confirmarSenhaController.clear();
+      setState(() => _imageFile = null);
+
+      // Se quiser fechar a tela após cadastrar:
+      // context.pop();
+    } catch (e) {
+      _snack('Erro ao cadastrar: $e', bg: Colors.red);
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
   Widget _buildProfileAvatar() {
-    final List<Color> gradientColors = [
-      const Color.fromARGB(255, 239, 171, 166),
-      const Color.fromARGB(255, 222, 146, 172),
-      const Color.fromARGB(255, 220, 137, 234),
-      const Color.fromARGB(255, 117, 165, 204),
-      const Color.fromARGB(255, 118, 215, 228),
-      const Color.fromARGB(255, 160, 229, 162),
-      const Color.fromARGB(255, 249, 241, 172),
-      const Color.fromARGB(255, 241, 212, 169),
+    final gradientColors = <Color>[
+      const Color(0xFFFA4050),
+      const Color(0xFF59B0E3),
+      const Color(0xFFF5E15F),
     ];
 
     return Center(
-      child: Stack(
-        children: [
-          // 1. O Anel Colorido e o Avatar principal
-          Container(
-            padding: const EdgeInsets.all(4.0), 
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: SweepGradient(
-                colors: gradientColors,
-                startAngle: 0.0,
-                endAngle: 3.14 * 2, 
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: _pickImage,
+        child: Stack(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: SweepGradient(
+                  colors: gradientColors,
+                  startAngle: 0,
+                  endAngle: 3.14 * 2,
+                ),
               ),
-            ),
-            child: CircleAvatar(
-              radius: 60,
-              backgroundColor: Colors.white,
               child: CircleAvatar(
-                radius: 56, 
-                backgroundColor: const Color(0xFFE0E0E0), 
-                // Exibe a imagem selecionada, se houver
-                backgroundImage: _imageFile != null ? FileImage(_imageFile!) : null,
-                // Exibe o ícone de pessoa APENAS se não houver imagem
-                child: _imageFile == null
-                    ? const Icon(Icons.person, size: 80, color: Colors.white)
-                    : null,
+                radius: 52,
+                backgroundColor: Colors.white,
+                child: CircleAvatar(
+                  radius: 48,
+                  backgroundColor: const Color(0xFFE0E0E0),
+                  backgroundImage: _imageFile != null ? FileImage(_imageFile!) : null,
+                  child: _imageFile == null
+                      ? const Icon(Icons.person, size: 60, color: Colors.white)
+                      : null,
+                ),
               ),
             ),
-          ),
-          
-          // 2. O Ícone/Botão de Câmera para Selecionar a Foto
-          Positioned(
-            bottom: 0,
-            right: 0,
-            child: InkWell( // Faz com que o círculo seja clicável
-              onTap: _pickImage, // Chama a função para selecionar a imagem
+            Positioned(
+              bottom: 2,
+              right: 2,
               child: Container(
-                height: 40,
-                width: 40,
+                height: 38,
+                width: 38,
                 decoration: BoxDecoration(
-                  color: Colors.lightBlue.shade400, // Cor do botão
+                  color: const Color.fromARGB(255, 81, 191, 255),
                   shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 3), // Borda branca
+                  border: Border.all(color: Colors.white, width: 3),
                 ),
-                child: const Icon(
-                  Icons.camera_alt,
-                  color: Colors.white,
-                  size: 20,
+                child: const Icon(Icons.camera_alt, size: 16, color: Colors.white),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBioDotted() {
+    return SizedBox(
+      height: 120,
+      child: DottedBorder(
+        options: RectDottedBorderOptions(
+          dashPattern: const [3, 2],
+          strokeWidth: 1,
+          padding: const EdgeInsets.all(12),
+          color: const Color.fromARGB(255, 160, 160, 160),
+        ),
+        child: TextFormField(
+          controller: _bioController,
+          maxLines: null,
+          expands: true,
+          decoration: const InputDecoration(
+            hintText: 'Digite a biografia da instituição',
+            hintStyle: TextStyle(color: Colors.grey, fontSize: 13),
+            border: InputBorder.none,
+            enabledBorder: InputBorder.none,
+            focusedBorder: InputBorder.none,
+            contentPadding: EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionButtons() {
+    return Column(
+      children: [
+        SizedBox(
+          width: double.infinity,
+          height: 46,
+          child: ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color.fromARGB(255, 81, 191, 255),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(50),
+                side: const BorderSide(
+                  color: Color.fromARGB(255, 69, 178, 241),
+                  width: 2,
                 ),
               ),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Widget para os campos de texto (inalterado)
-  Widget _buildFormFields() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        // 1. Nome da Instituição
-        TextFormField(
-          decoration: _inputDecoration('Digite o nome da instituição'),
-        ),
-        const SizedBox(height: 8),
-
-        // Texto Opcional
-        const Padding(
-          padding: EdgeInsets.only(left: 4.0),
-          child: Text(
-            '*Opcional',
-            style: TextStyle(fontSize: 12, color: Colors.grey),
+            onPressed: _loading ? null : _cadastrar,
+            child: _loading
+                ? const SizedBox(
+                    height: 18,
+                    width: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                  )
+                : const Text(
+                    'Cadastrar',
+                    style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
           ),
         ),
-        const SizedBox(height: 4),
-
-        // 2. Campus/Região (Opcional)
-        TextFormField(
-          decoration: _inputDecoration('Digite o campus/região da sua instituição'),
+        const SizedBox(height: 10),
+        SizedBox(
+          width: double.infinity,
+          height: 46,
+          child: ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color.fromARGB(255, 255, 81, 81),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(50),
+                side: const BorderSide(
+                  color: Color.fromARGB(255, 241, 69, 69),
+                  width: 2,
+                ),
+              ),
+            ),
+            onPressed: () => context.pop(),
+            child: const Text(
+              'Cancelar',
+              style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+          ),
         ),
-        const SizedBox(height: 16),
-
-        // 3. Biografia (Múltiplas Linhas)
-        TextFormField(
-          maxLines: 4,
-          decoration: _inputDecoration('Escreva uma breve biografia sobre a instituição'),
-        ),
-        const SizedBox(height: 16),
-
-        // 4. Email da Instituição
-        TextFormField(
-          keyboardType: TextInputType.emailAddress,
-          decoration: _inputDecoration('Digite o email da instituição'),
-        ),
-        const SizedBox(height: 16),
-
-        // 5. Senha
-        TextFormField(
-          obscureText: true,
-          decoration: _inputDecoration('Digite a senha'),
-        ),
-        const SizedBox(height: 16),
-
-        // 6. Confirmar Senha
-        TextFormField(
-          obscureText: true,
-          decoration: _inputDecoration('Confirmar senha'),
-        ),
-        const SizedBox(height: 40),
       ],
-    );
-  }
-
-  // Widget para o botão de cadastro (inalterado)
-  Widget _buildCadastrarButton() {
-    return ElevatedButton(
-      onPressed: () {
-        // Lógica de cadastro: if (_formKey.currentState!.validate()) { ... }
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Cadastrando... Imagem selecionada: ${_imageFile != null ? "Sim" : "Não"}')),
-        );
-      },
-      style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.lightBlue.shade400, // Cor de fundo
-        foregroundColor: Colors.white, // Cor do texto
-        minimumSize: const Size(double.infinity, 50),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(30.0), // Borda arredondada
-        ),
-        elevation: 4,
-      ),
-      child: const Text(
-        'Cadastrar',
-        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            return SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  minHeight: constraints.maxHeight, 
-                ),
-                child: IntrinsicHeight(
-                  child: Form(
-                    key: _formKey, 
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        const Padding(
-                          padding: EdgeInsets.only(top: 40.0), 
-                          child: SizedBox.shrink(),
-                        ),
-                        
-                        _buildProfileAvatar(),
-                        const SizedBox(height: 40),
-                        
-                        _buildFormFields(),
-                        
-                        const Spacer(), 
+    final screenWidth = MediaQuery.of(context).size.width;
+    const double maxFormWidth = 500;
+    final double horizontalPadding = screenWidth * 0.06;
 
-                        _buildCadastrarButton(),
-                        
-                        const Padding(
-                          padding: EdgeInsets.only(bottom: 40.0), 
-                          child: SizedBox.shrink(),
-                        ),
-                      ],
+    return Material(
+      color: Colors.transparent,
+      child: SafeArea(
+        bottom: false, // evita brigar com a TabView embaixo
+        child: Container(
+          decoration: BoxDecoration(gradient: backgroundSla),
+          padding: EdgeInsets.only(
+            bottom: 75,
+            left: horizontalPadding,
+            right: horizontalPadding,
+            top: 20,
+          ),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: maxFormWidth),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  color: Colors.white,
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        children: [
+                          const SizedBox(height: 6),
+                          _buildProfileAvatar(),
+                          const SizedBox(height: 16),
+
+                          TextFormField(
+                            controller: _nomeInstController,
+                            decoration: _fieldDecoration('Digite o nome da instituição'),
+                            validator: (v) => (v == null || v.trim().isEmpty)
+                                ? 'Informe o nome da instituição.'
+                                : null,
+                          ),
+                          const SizedBox(height: 10),
+
+                          TextFormField(
+                            controller: _campusController,
+                            decoration: _fieldDecoration('Digite o campus/região da sua instituição'),
+                          ),
+                          const SizedBox(height: 10),
+
+                          _buildBioDotted(),
+                          const SizedBox(height: 10),
+
+                          TextFormField(
+                            controller: _emailController,
+                            keyboardType: TextInputType.emailAddress,
+                            decoration: _fieldDecoration('Digite o email da instituição'),
+                            validator: (v) {
+                              if (v == null || v.trim().isEmpty) return 'Informe o email.';
+                              if (!v.contains('@')) return 'Email inválido.';
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 10),
+
+                          TextFormField(
+                            controller: _senhaController,
+                            obscureText: true,
+                            decoration: _fieldDecoration('Digite a senha'),
+                            validator: (v) {
+                              if (v == null || v.isEmpty) return 'Informe a senha.';
+                              if (v.length < 6) return 'Senha muito curta (mín. 6).';
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 10),
+
+                          TextFormField(
+                            controller: _confirmarSenhaController,
+                            obscureText: true,
+                            decoration: _fieldDecoration('Confirmar senha'),
+                            validator: (v) => (v == null || v.isEmpty) ? 'Confirme a senha.' : null,
+                          ),
+                          const SizedBox(height: 18),
+
+                          _buildActionButtons(),
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
-            );
-          }
+            ),
+          ),
         ),
       ),
     );

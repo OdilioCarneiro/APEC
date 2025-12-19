@@ -1,160 +1,362 @@
-import 'package:http/http.dart' as http;
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+
 class ApiService {
-  // Atualize isso com a URL do seu backend quando estiver rodando
   static const String baseUrl = 'https://apec-1-25ad.onrender.com/api';
+  static const Duration _timeout = Duration(seconds: 20);
 
-  // Para testar em um dispositivo físico, use o IP da máquina em vez de localhost
-  // static const String baseUrl = 'http://SEU_IP:3000/api';
+  // ===== Storage keys =====
+  static const String _kTokenKey = 'token';
 
-  /// Listar todos os eventos
-  static Future<List<dynamic>> listarEventos() async {
-    try {
-      final response = await http.get(Uri.parse('$baseUrl/eventos'));
+  // ===== Helpers =====
+  static Uri _uri(String path) => Uri.parse('$baseUrl$path');
 
-      if (response.statusCode == 200) {
-        return json.decode(response.body);
-      } else {
-        throw Exception('Erro ao listar eventos: ${response.statusCode}');
+  static Future<Map<String, String>> _jsonHeaders({bool auth = false}) async {
+    final headers = <String, String>{
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    };
+
+    if (auth) {
+      final token = await lerToken();
+      if (token != null && token.isNotEmpty) {
+        headers['Authorization'] = 'Bearer $token';
       }
-    } catch (e) {
-      throw Exception('Erro na requisição: $e');
+    }
+
+    return headers;
+  }
+
+  static Future<http.Response> _get(String path, {bool auth = false}) async {
+    final headers = await _jsonHeaders(auth: auth);
+    return http.get(_uri(path), headers: headers).timeout(_timeout);
+  }
+
+  static Future<http.Response> _post(String path,
+      {required Object body, bool auth = false}) async {
+    final headers = await _jsonHeaders(auth: auth);
+    return http
+        .post(_uri(path), headers: headers, body: json.encode(body))
+        .timeout(_timeout);
+  }
+
+  static Future<http.Response> _put(String path,
+      {required Object body, bool auth = false}) async {
+    final headers = await _jsonHeaders(auth: auth);
+    return http
+        .put(_uri(path), headers: headers, body: json.encode(body))
+        .timeout(_timeout);
+  }
+
+  static Future<http.Response> _delete(String path, {bool auth = false}) async {
+    final headers = await _jsonHeaders(auth: auth);
+    return http.delete(_uri(path), headers: headers).timeout(_timeout);
+  }
+
+  static Map<String, dynamic> _decodeMap(http.Response response) {
+    final body = utf8.decode(response.bodyBytes);
+    final decoded = json.decode(body);
+    if (decoded is Map<String, dynamic>) return decoded;
+    throw Exception('Resposta não é um JSON objeto: $body');
+  }
+
+  static List<dynamic> _decodeList(http.Response response) {
+    final body = utf8.decode(response.bodyBytes);
+    final decoded = json.decode(body);
+    if (decoded is List) return decoded;
+    throw Exception('Resposta não é um JSON array: $body');
+  }
+
+  // ===== Sessão (token) =====
+  static Future<void> salvarToken(String token) async {
+    final sp = await SharedPreferences.getInstance();
+    await sp.setString(_kTokenKey, token);
+  }
+
+  static Future<String?> lerToken() async {
+    final sp = await SharedPreferences.getInstance();
+    return sp.getString(_kTokenKey);
+  }
+
+  static Future<void> logout() async {
+    final sp = await SharedPreferences.getInstance();
+    await sp.remove(_kTokenKey);
+  }
+
+  static Future<bool> estaLogado() async {
+    final token = await lerToken();
+    return token != null && token.isNotEmpty;
+  }
+
+  // ===== Health =====
+  static Future<bool> verificarSaude() async {
+    try {
+      final response = await http
+          .get(Uri.parse('${baseUrl.replaceAll('/api', '')}/api/health'))
+          .timeout(const Duration(seconds: 5));
+      return response.statusCode == 200;
+    } catch (_) {
+      return false;
     }
   }
 
-  /// Obter um evento específico por ID
-  static Future<Map<String, dynamic>> obterEvento(String id) async {
-    try {
-      final response = await http.get(Uri.parse('$baseUrl/eventos/$id'));
+  // ============================================================
+  // INSTITUIÇÃO
+  // ============================================================
 
-      if (response.statusCode == 200) {
-        return json.decode(response.body);
-      } else {
-        throw Exception('Evento não encontrado: ${response.statusCode}');
-      }
-    } catch (e) {
-      throw Exception('Erro na requisição: $e');
-    }
-  }
-
-  /// Criar evento de forma inteligente (imagem opcional)
-  static Future<Map<String, dynamic>> criarEventoSmart({
+  /// Cadastro de instituição (imagem opcional)
+  /// Endpoint esperado: POST /instituicoes
+  static Future<Map<String, dynamic>> cadastrarInstituicaoSmart({
     required Map<String, dynamic> dados,
     File? imagem,
   }) async {
-    final uri = Uri.parse('$baseUrl/eventos');
+    final uri = _uri('/instituicoes');
 
-    // CENÁRIO 1: Sem imagem -> Envia JSON normal
+    // Sem imagem -> JSON
     if (imagem == null) {
-      final response = await http.post(
-        uri,
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode(dados),
-      );
+      final response = await http
+          .post(
+            uri,
+            headers: await _jsonHeaders(auth: false),
+            body: json.encode(dados),
+          )
+          .timeout(_timeout);
 
-      if (response.statusCode == 201) {
-        return json.decode(response.body);
-      } else {
-        throw Exception('Erro ao criar evento (JSON): ${response.statusCode} - ${response.body}');
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        return _decodeMap(response);
       }
+      throw Exception(
+        'Erro ao cadastrar instituição (JSON): ${response.statusCode} - ${utf8.decode(response.bodyBytes)}',
+      );
     }
 
-    // CENÁRIO 2: Com imagem -> Envia Multipart
+    // Com imagem -> Multipart
     final request = http.MultipartRequest('POST', uri);
 
-    // 1. Adiciona arquivo PRIMEIRO
-    final stream = http.ByteStream(imagem.openRead());
-    final length = await imagem.length();
-    final multipartFile = http.MultipartFile(
-      'file', // Nome do campo esperado pelo backend
-      stream,
-      length,
-      filename: imagem.path.split('/').last,
+    // Se o cadastro exigir auth, troque para auth: true e adicione Authorization aqui
+    // request.headers['Authorization'] = 'Bearer $token';
+
+    request.files.add(
+      await http.MultipartFile.fromPath(
+        'file', // mesmo nome que você usa no evento
+        imagem.path,
+        filename: imagem.path.split('/').last,
+      ),
     );
-    request.files.add(multipartFile);
 
-    // 2. Adiciona campos DEPOIS (converte para String)
-  dados.forEach((key, value) {
-  if (value != null && key != 'imagem') {
-    request.fields[key] = value.toString();
-  }
-});
-
-
-    final streamedResponse = await request.send();
-    final response = await http.Response.fromStream(streamedResponse);
-
-    if (response.statusCode == 201) {
-      return json.decode(response.body);
-    } else {
-      throw Exception('Erro ao criar evento (Multipart): ${response.statusCode} - ${response.body}');
-    }
-  }
-
-  /// Atualizar um evento
-  static Future<Map<String, dynamic>> atualizarEvento(
-    String id,
-    Map<String, dynamic> evento,
-  ) async {
-    try {
-      final response = await http.put(
-        Uri.parse('$baseUrl/eventos/$id'),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode(evento),
-      );
-
-      if (response.statusCode == 200) {
-        return json.decode(response.body);
-      } else {
-        throw Exception('Erro ao atualizar evento: ${response.statusCode}');
+    dados.forEach((key, value) {
+      if (value != null && key != 'imagem') {
+        request.fields[key] = value.toString();
       }
-    } catch (e) {
-      throw Exception('Erro na requisição: $e');
+    });
+
+    final streamed = await request.send().timeout(_timeout);
+    final response = await http.Response.fromStream(streamed);
+
+    if (response.statusCode == 201 || response.statusCode == 200) {
+      return _decodeMap(response);
     }
+    throw Exception(
+      'Erro ao cadastrar instituição (Multipart): ${response.statusCode} - ${utf8.decode(response.bodyBytes)}',
+    );
   }
 
-  /// Deletar um evento
-  static Future<void> deletarEvento(String id) async {
-    try {
-      final response = await http.delete(Uri.parse('$baseUrl/eventos/$id'));
+  /// Login de instituição
+  /// Endpoint esperado: POST /instituicoes/login
+  /// Retorno esperado: { token: "...", ... }
+  static Future<Map<String, dynamic>> loginInstituicao({
+    required String email,
+    required String senha,
+  }) async {
+    final response = await _post(
+      '/instituicoes/login',
+      body: {'email': email, 'senha': senha},
+      auth: false,
+    );
 
-      if (response.statusCode != 200) {
-        throw Exception('Erro ao deletar evento: ${response.statusCode}');
+    if (response.statusCode == 200) {
+      final data = _decodeMap(response);
+
+      // Ajuste o campo se seu backend usar outro nome (ex: access_token)
+      final token = data['token']?.toString();
+      if (token != null && token.isNotEmpty) {
+        await salvarToken(token);
       }
-    } catch (e) {
-      throw Exception('Erro na requisição: $e');
+
+      return data;
     }
+
+    throw Exception(
+      'Erro ao logar: ${response.statusCode} - ${utf8.decode(response.bodyBytes)}',
+    );
+  }
+
+  /// Perfil da instituição logada
+  /// Endpoint esperado: GET /instituicoes/me  (auth Bearer)
+  static Future<Map<String, dynamic>> minhaInstituicao() async {
+    final response = await _get('/instituicoes/me', auth: true);
+
+    if (response.statusCode == 200) {
+      return _decodeMap(response);
+    }
+
+    throw Exception(
+      'Erro ao buscar perfil: ${response.statusCode} - ${utf8.decode(response.bodyBytes)}',
+    );
+  }
+
+  // ============================================================
+  // EVENTOS
+  // ============================================================
+
+  /// Listar todos os eventos
+  static Future<List<dynamic>> listarEventos() async {
+    final response = await _get('/eventos');
+
+    if (response.statusCode == 200) {
+      return _decodeList(response);
+    }
+
+    throw Exception(
+      'Erro ao listar eventos: ${response.statusCode} - ${utf8.decode(response.bodyBytes)}',
+    );
+  }
+
+  /// Obter um evento por id
+  static Future<Map<String, dynamic>> obterEvento(String id) async {
+    final response = await _get('/eventos/$id');
+
+    if (response.statusCode == 200) {
+      return _decodeMap(response);
+    }
+
+    throw Exception(
+      'Evento não encontrado: ${response.statusCode} - ${utf8.decode(response.bodyBytes)}',
+    );
   }
 
   /// Listar eventos por categoria
   static Future<List<dynamic>> listarEventosPorCategoria(String categoria) async {
-    try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/eventos/categoria/$categoria'),
-      );
+    final response = await _get('/eventos/categoria/$categoria');
 
-      if (response.statusCode == 200) {
-        return json.decode(response.body);
-      } else {
-        throw Exception('Erro ao listar eventos: ${response.statusCode}');
-      }
-    } catch (e) {
-      throw Exception('Erro na requisição: $e');
+    if (response.statusCode == 200) {
+      return _decodeList(response);
     }
+
+    throw Exception(
+      'Erro ao listar eventos por categoria: ${response.statusCode} - ${utf8.decode(response.bodyBytes)}',
+    );
   }
 
-  /// Verificar se a API está disponível
-  static Future<bool> verificarSaude() async {
-    try {
-      final response = await http.get(
-        Uri.parse('${baseUrl.replaceAll('/api', '')}/api/health'),
-      ).timeout(const Duration(seconds: 5));
+  /// Eventos da instituição logada
+  /// Endpoint esperado: GET /eventos/me (auth Bearer)
+  static Future<List<dynamic>> meusEventos() async {
+    final response = await _get('/eventos/me', auth: true);
 
-      return response.statusCode == 200;
-    } catch (e) {
-      return false;
+    if (response.statusCode == 200) {
+      return _decodeList(response);
     }
+
+    throw Exception(
+      'Erro ao listar meus eventos: ${response.statusCode} - ${utf8.decode(response.bodyBytes)}',
+    );
+  }
+
+  /// Criar evento "smart" (imagem opcional)
+  /// Endpoint esperado: POST /eventos
+  static Future<Map<String, dynamic>> criarEventoSmart({
+    required Map<String, dynamic> dados,
+    File? imagem,
+    bool auth = false, // coloque true se seu backend exigir token para criar evento
+  }) async {
+    final uri = _uri('/eventos');
+
+    // Sem imagem -> JSON
+    if (imagem == null) {
+      final response = await http
+          .post(
+            uri,
+            headers: await _jsonHeaders(auth: auth),
+            body: json.encode(dados),
+          )
+          .timeout(_timeout);
+
+      if (response.statusCode == 201) {
+        return _decodeMap(response);
+      }
+
+      throw Exception(
+        'Erro ao criar evento (JSON): ${response.statusCode} - ${utf8.decode(response.bodyBytes)}',
+      );
+    }
+
+    // Com imagem -> Multipart
+    final request = http.MultipartRequest('POST', uri);
+
+    if (auth) {
+      final token = await lerToken();
+      if (token != null && token.isNotEmpty) {
+        request.headers['Authorization'] = 'Bearer $token';
+      }
+    }
+
+    request.files.add(
+      await http.MultipartFile.fromPath(
+        'file',
+        imagem.path,
+        filename: imagem.path.split('/').last,
+      ),
+    );
+
+    dados.forEach((key, value) {
+      if (value != null && key != 'imagem') {
+        request.fields[key] = value.toString();
+      }
+    });
+
+    final streamed = await request.send().timeout(_timeout);
+    final response = await http.Response.fromStream(streamed);
+
+    if (response.statusCode == 201) {
+      return _decodeMap(response);
+    }
+
+    throw Exception(
+      'Erro ao criar evento (Multipart): ${response.statusCode} - ${utf8.decode(response.bodyBytes)}',
+    );
+  }
+
+  /// Atualizar evento
+  static Future<Map<String, dynamic>> atualizarEvento(
+    String id,
+    Map<String, dynamic> evento, {
+    bool auth = false,
+  }) async {
+    final response = await _put('/eventos/$id', body: evento, auth: auth);
+
+    if (response.statusCode == 200) {
+      return _decodeMap(response);
+    }
+
+    throw Exception(
+      'Erro ao atualizar evento: ${response.statusCode} - ${utf8.decode(response.bodyBytes)}',
+    );
+  }
+
+  /// Deletar evento
+  static Future<void> deletarEvento(String id, {bool auth = false}) async {
+    final response = await _delete('/eventos/$id', auth: auth);
+
+    if (response.statusCode == 200 || response.statusCode == 204) {
+      return;
+    }
+
+    throw Exception(
+      'Erro ao deletar evento: ${response.statusCode} - ${utf8.decode(response.bodyBytes)}',
+    );
   }
 }

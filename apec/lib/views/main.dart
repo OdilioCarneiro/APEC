@@ -1,23 +1,40 @@
-import 'package:apec/pages/data/model.dart';
+import 'package:apec/views/login.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
+
+// MODELS
+import 'package:apec/pages/data/model.dart'; 
+
+// VIEWS/PAGES
+import 'package:apec/views/on_boarding.dart';
+import 'package:apec/views/starter_page.dart';
 import 'package:apec/views/cadastro.dart';
 import 'package:apec/views/event_page.dart';
-import 'package:apec/views/starter_page.dart';
-import 'package:flutter/material.dart';
-import 'on_boarding.dart';
-import 'package:go_router/go_router.dart';
-import '../pages/components/tabview.dart';
-import 'package:flutter/services.dart';
-import 'package:apec/views/insituit_page.dart';
+
+import 'package:apec/views/home_page.dart';
+import 'package:apec/views/sport_page.dart';
+import 'package:apec/views/cultura_page.dart';
+
+import 'package:apec/pages/CadasInstPage.dart'; 
+
+import 'package:apec/pages/components/tabview.dart'; 
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  SystemChrome.setPreferredOrientations([
-    DeviceOrientation.portraitUp, 
-  ]);
+  SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
   runApp(const MyApp());
+  
 }
 
-final _router = GoRouter(
+final _rootKey = GlobalKey<NavigatorState>();
+
+final GoRouter _router = GoRouter(
+  navigatorKey: _rootKey,
+
+  initialLocation: '/',
+
   routes: [
     GoRoute(
       path: '/',
@@ -27,24 +44,57 @@ final _router = GoRouter(
       path: '/starter_page',
       builder: (context, state) => const SegundaTela(),
     ),
+
     GoRoute(
       path: '/tabview',
-      builder: (context, state) => const Tabview(),
+      redirect: (context, state) => '/home',
     ),
+
     GoRoute(
-      path: '/cadastro',
-      builder: (context, state) => const Cadastro(),
+      path: '/cadastro_instituicao',
+      redirect: (context, state) => '/perfil_instituicao/cadastro',
     ),
-     GoRoute(
-      path: '/perfil_instituicao',
-      builder: (context, state) => const PerfilInstituicaoPage(),
-    ),
-    GoRoute(
-      path: '/evento',
-      builder: (context, state) {
-      final evento = state.extra as Evento; // importa Evento do seu model
-      return EventPage(evento: evento);
-  },
+
+    ShellRoute(
+      builder: (context, state, child) => Tabview(child: child),
+      routes: [
+
+        GoRoute(
+          path: '/home',
+          builder: (context, state) => const HomePage(),
+        ),
+        GoRoute(
+          path: '/sport',
+          builder: (context, state) => const SportPage(),
+        ),
+        GoRoute(
+          path: '/cultura',
+          builder: (context, state) => const CulturaPage(),
+        ),
+
+        GoRoute(
+          path: '/login',
+          builder: (context, state) => const InstitPage(),
+          routes: [
+            GoRoute(
+            path: '/cadastro_evento',
+            builder: (context, state) => const Cadastro(),
+            ),
+            GoRoute(
+              path: '/cadastro_instituicao',
+              builder: (context, state) => const CadasInstPage(),
+            ),
+          ],
+        ),
+
+        GoRoute(
+          path: '/evento',
+          builder: (context, state) {
+            final evento = state.extra as Evento;
+            return EventPage(evento: evento);
+          },
+        ),
+      ],
     ),
   ],
 );

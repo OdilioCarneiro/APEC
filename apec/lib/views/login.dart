@@ -99,7 +99,7 @@ class LoginScreen extends StatelessWidget {
                                 ),
                               ),
                               onPressed: () {
-                                context.push('/cadastro');
+                                context.push('/login/cadastro_evento');
                               },
                               child: const Text("Login",
                                   style: TextStyle(fontSize: 18, color: Colors.white)
@@ -123,7 +123,9 @@ class LoginScreen extends StatelessWidget {
                                 borderRadius: BorderRadius.circular(20),
                               ),
                             ),
-                            onPressed: () {},
+                            onPressed: () {
+                              context.push('/login/cadastro_instituicao');
+                            },
                             child: const Padding(
                               padding: EdgeInsets.symmetric(horizontal: 20),
                               child: Text("Cadastrar", 

@@ -1,14 +1,30 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:apec/services/api_service.dart';
 
-class PerfilInstituicaoPage extends StatelessWidget {
+class PerfilInstituicaoPage extends StatefulWidget {
   const PerfilInstituicaoPage({super.key});
+
+  @override
+  State<PerfilInstituicaoPage> createState() => _PerfilInstituicaoPageState();
+}
+
+class _PerfilInstituicaoPageState extends State<PerfilInstituicaoPage> {
+  late final Future<Map<String, dynamic>> _perfilFuture;
+  late final Future<List<dynamic>> _eventosFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _perfilFuture = ApiService.minhaInstituicao();
+    _eventosFuture = ApiService.meusEventos();
+  }
 
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
     final screenWidth = size.width;
-    final horizontalPadding =
-        (screenWidth * 0.05).clamp(16.0, 24.0);
+    final horizontalPadding = (screenWidth * 0.05).clamp(16.0, 24.0);
 
     return Scaffold(
       backgroundColor: const Color(0xFFEFEFF4),
@@ -18,251 +34,245 @@ class PerfilInstituicaoPage extends StatelessWidget {
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [
-                Color(0xFFFFE5E5),
-                Color(0xFFE5F7FF),
-                Color(0xFFEDE5FF),
-              ],
+              colors: [Color(0xFFFFE5E5), Color(0xFFE5F7FF), Color(0xFFEDE5FF)],
             ),
           ),
           child: Center(
             child: SingleChildScrollView(
               padding: EdgeInsets.all(horizontalPadding),
-              child: _PerfilCard(horizontalPadding: horizontalPadding),
+              child: FutureBuilder<Map<String, dynamic>>(
+                future: _perfilFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState != ConnectionState.done) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (snapshot.hasError) {
+                    return Text('Erro: ${snapshot.error}');
+                  }
+
+                  final inst = snapshot.data!;
+                  // ajuste chaves conforme seu backend:
+                  final nome = (inst['nome'] ?? '').toString();
+                  final campus = (inst['campus'] ?? '').toString();
+                  final bio = (inst['bio'] ?? '').toString();
+                  final fotoUrl = inst['fotoUrl']?.toString(); // opcional
+
+                  return _PerfilCard(
+                    horizontalPadding: horizontalPadding,
+                    nome: nome,
+                    campus: campus,
+                    bio: bio,
+                    fotoUrl: fotoUrl,
+                    eventosFuture: _eventosFuture,
+                    onAddEvento: () => context.push('/cadastro'), // troque pela rota do cadastro_eventos
+                  );
+                },
+              ),
             ),
           ),
         ),
       ),
-      // sua bottomNavigationBar/tabview entra aqui
     );
   }
 }
 
 class _PerfilCard extends StatelessWidget {
   final double horizontalPadding;
-  const _PerfilCard({required this.horizontalPadding});
+  final String nome;
+  final String campus;
+  final String bio;
+  final String? fotoUrl;
+  final Future<List<dynamic>> eventosFuture;
+  final VoidCallback onAddEvento;
+
+  const _PerfilCard({
+    required this.horizontalPadding,
+    required this.nome,
+    required this.campus,
+    required this.bio,
+    required this.fotoUrl,
+    required this.eventosFuture,
+    required this.onAddEvento,
+  });
 
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
-    final cardWidth =
-        (screenWidth - 2 * horizontalPadding).clamp(320.0, 500.0);
+    final cardWidth = (screenWidth - 2 * horizontalPadding).clamp(320.0, 500.0);
 
     return Container(
       width: cardWidth,
       padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-      ),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // Logo circular
+          // Logo / foto
           Container(
             width: 96,
             height: 96,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              border: Border.all(
-                color: Colors.redAccent,
-                width: 3,
-              ),
-              // substitua por Image.asset se tiver o logo real
-              gradient: const LinearGradient(
-                colors: [
-                  Color(0xFF00A94F),
-                  Color(0xFF00923F),
-                ],
-              ),
+              border: Border.all(color: Colors.redAccent, width: 3),
+              color: Colors.grey.shade200,
             ),
-            alignment: Alignment.center,
-            child: const Text(
-              'IF',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w800,
-                fontSize: 28,
-              ),
+            child: ClipOval(
+              child: fotoUrl == null || fotoUrl!.isEmpty
+                  ? const Center(
+                      child: Text(
+                        'IF',
+                        style: TextStyle(fontWeight: FontWeight.w800, fontSize: 28),
+                      ),
+                    )
+                  : Image.network(fotoUrl!, fit: BoxFit.cover),
             ),
           ),
+
           const SizedBox(height: 16),
-          const Text(
-            'IFCE',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF263238),
-            ),
+
+          Text(
+            nome.isEmpty ? 'Instituição' : nome,
+            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: Color(0xFF263238)),
           ),
           const SizedBox(height: 4),
-          const Text(
-            'Campus Fortaleza',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w500,
-              color: Colors.grey,
-            ),
+
+          Text(
+            campus.isEmpty ? 'Campus/Região' : campus,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500, color: Colors.grey),
           ),
+
           const SizedBox(height: 8),
-          const Text(
-            'Perfil destinado para eventos esportivos e culturais do '
-            'instituto federal campus fortaleza',
+
+          Text(
+            bio.isEmpty ? 'Sem biografia.' : bio,
             textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 13,
-              height: 1.3,
-              color: Color(0xFF757575),
-            ),
+            style: const TextStyle(fontSize: 13, height: 1.3, color: Color(0xFF757575)),
           ),
-          const SizedBox(height: 24),
-
-          // Primeira seção de categoria
-          const _SecaoCategoria(),
 
           const SizedBox(height: 24),
 
-          // Segunda seção de categoria
-          const _SecaoCategoria(),
+          _SecaoEventos(eventosFuture: eventosFuture, onAddEvento: onAddEvento),
         ],
       ),
     );
   }
 }
 
-class _SecaoCategoria extends StatelessWidget {
-  const _SecaoCategoria();
+class _SecaoEventos extends StatelessWidget {
+  final Future<List<dynamic>> eventosFuture;
+  final VoidCallback onAddEvento;
+
+  const _SecaoEventos({required this.eventosFuture, required this.onAddEvento});
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final cardWidth =
-        (screenWidth * 0.62).clamp(220.0, 280.0);
-    final cardHeight =
-        (cardWidth * 0.45).clamp(90.0, 120.0);
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Título "Nova categoria" + ícone editar
         Row(
           children: const [
             Text(
-              'Nova categoria',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF263238),
-              ),
+              'Eventos',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF263238)),
             ),
             SizedBox(width: 4),
-            Icon(
-              Icons.edit,
-              size: 16,
-              color: Color(0xFF263238),
-            ),
+            Icon(Icons.edit, size: 16, color: Color(0xFF263238)),
           ],
         ),
         const SizedBox(height: 8),
 
-        // Carrossel de cards
         SizedBox(
-          height: cardHeight,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: 3,
-            separatorBuilder: (_, __) => const SizedBox(width: 12),
-            itemBuilder: (context, index) {
-              return _CategoriaCard(
-                width: cardWidth,
-                height: cardHeight,
-                isPrincipal: index == 0,
+          height: 120,
+          child: FutureBuilder<List<dynamic>>(
+            future: eventosFuture,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState != ConnectionState.done) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              final eventos = snapshot.data ?? [];
+
+              return ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: 1 + eventos.length, // 1 = card "+"
+                separatorBuilder: (_, __) => const SizedBox(width: 12),
+                itemBuilder: (context, index) {
+                  if (index == 0) {
+                    return _AddCard(onTap: onAddEvento);
+                  }
+
+                  final e = eventos[index - 1] as Map<String, dynamic>;
+                  final titulo = (e['nome'] ?? 'Evento').toString();
+
+                  return _EventoCard(title: titulo);
+                },
               );
             },
           ),
-        ),
-
-        const SizedBox(height: 8),
-
-        // Indicador de página (3 bolinhas)
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            _Dot(isActive: true),
-            const SizedBox(width: 4),
-            _Dot(isActive: false),
-            const SizedBox(width: 4),
-            _Dot(isActive: false),
-          ],
         ),
       ],
     );
   }
 }
 
-class _CategoriaCard extends StatelessWidget {
-  final double width;
-  final double height;
-  final bool isPrincipal;
-
-  const _CategoriaCard({
-    required this.width,
-    required this.height,
-    required this.isPrincipal,
-  });
+class _AddCard extends StatelessWidget {
+  final VoidCallback onTap;
+  const _AddCard({required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: width,
-      height: height,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        gradient: const LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            Color(0xFFE0E0E0),
-            Color(0xFFBDBDBD),
-          ],
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        width: 260,
+        height: 120,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          gradient: const LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFFE0E0E0), Color(0xFFBDBDBD)],
+          ),
+        ),
+        child: Center(
+          child: Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.grey, width: 3),
+            ),
+            child: const Icon(Icons.add, size: 28, color: Colors.black54),
+          ),
         ),
       ),
-      child: isPrincipal
-          ? Center(
-              child: Container(
-                width: height * 0.45,
-                height: height * 0.45,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: Colors.grey.shade700,
-                    width: 3,
-                  ),
-                ),
-                child: Icon(
-                  Icons.add,
-                  size: height * 0.32,
-                  color: Colors.grey.shade700,
-                ),
-              ),
-            )
-          : const SizedBox.shrink(),
     );
   }
 }
 
-class _Dot extends StatelessWidget {
-  final bool isActive;
-  const _Dot({required this.isActive});
+class _EventoCard extends StatelessWidget {
+  final String title;
+  const _EventoCard({required this.title});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: isActive ? 8 : 6,
-      height: isActive ? 8 : 6,
+      width: 260,
+      height: 120,
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: isActive ? Colors.black87 : Colors.grey,
-        shape: BoxShape.circle,
+        borderRadius: BorderRadius.circular(20),
+        color: Colors.white,
+        border: Border.all(color: Colors.black12),
+      ),
+      child: Align(
+        alignment: Alignment.bottomLeft,
+        child: Text(
+          title,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+        ),
       ),
     );
   }

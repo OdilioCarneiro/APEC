@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:apec/pages/data/model.dart'; // onde está Evento, Jogo, JogoNatacao, enums
+import 'package:apec/pages/data/model.dart';
 
 class EventPage extends StatelessWidget {
   final Evento evento;
@@ -10,7 +10,6 @@ class EventPage extends StatelessWidget {
     final size = MediaQuery.of(context).size;
     final screenHeight = size.height;
 
-    // Gradiente de fundo conforme categoria
     final Gradient fundoEvento =
         (evento.categoria == Categoria.esportiva)
             ? LinearGradient(
