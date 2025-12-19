@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:apec/services/api_service.dart';
+import 'package:go_router/go_router.dart';
 
 class Cadastro extends StatelessWidget {
   const Cadastro({super.key});
@@ -18,8 +19,12 @@ class Cadastro extends StatelessWidget {
         datePickerTheme: DatePickerThemeData(
           backgroundColor: Colors.white,
           surfaceTintColor: Colors.transparent,
-          cancelButtonStyle: TextButton.styleFrom(foregroundColor: const Color(0xFF1565C0)),
-          confirmButtonStyle: TextButton.styleFrom(foregroundColor: const Color(0xFF1565C0)),
+          cancelButtonStyle: TextButton.styleFrom(
+            foregroundColor: const Color(0xFF1565C0),
+          ),
+          confirmButtonStyle: TextButton.styleFrom(
+            foregroundColor: const Color(0xFF1565C0),
+          ),
           todayBackgroundColor: const WidgetStatePropertyAll(Colors.transparent),
           todayForegroundColor: const WidgetStatePropertyAll(Colors.blue),
           todayBorder: const BorderSide(color: Colors.blue),
@@ -38,18 +43,20 @@ class Cadastro extends StatelessWidget {
         ),
         timePickerTheme: TimePickerThemeData(
           backgroundColor: Colors.white,
-          dayPeriodColor:  Colors.blue,
-          dayPeriodTextColor: Colors.blue ,
-          dialBackgroundColor: const Color.fromARGB(255, 210, 210, 210) ,
-          dialHandColor: const Color.fromARGB(255, 91, 181, 255) ,
+          dayPeriodColor: Colors.blue,
+          dayPeriodTextColor: Colors.blue,
+          dialBackgroundColor: const Color.fromARGB(255, 210, 210, 210),
+          dialHandColor: const Color.fromARGB(255, 91, 181, 255),
           dialTextColor: const Color.fromARGB(255, 0, 0, 0),
-          entryModeIconColor: Colors.blue ,
+          entryModeIconColor: Colors.blue,
           hourMinuteColor: const Color.fromARGB(255, 210, 210, 210),
           hourMinuteTextColor: const Color.fromARGB(255, 0, 0, 0),
           cancelButtonStyle: TextButton.styleFrom(
-          foregroundColor: Colors.blue,),
+            foregroundColor: Colors.blue,
+          ),
           confirmButtonStyle: TextButton.styleFrom(
-          foregroundColor: Colors.blue,),
+            foregroundColor: Colors.blue,
+          ),
         ),
         dropdownMenuTheme: const DropdownMenuThemeData(
           menuStyle: MenuStyle(
@@ -261,8 +268,9 @@ class _CadastroEventoScreenState extends State<CadastroEventoScreen> {
         _horaSelecionada = TimeOfDay.now();
       });
 
-      Navigator.pop(context, response);
-
+      if (mounted) {
+        context.pop(response);
+      }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -278,291 +286,371 @@ class _CadastroEventoScreenState extends State<CadastroEventoScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+    final screenWidth = size.width;
+
+    // largura máxima do formulário para não esticar demais em telas grandes
+    final double maxFormWidth = 500;
+    final double horizontalPadding = screenWidth * 0.04;
+
     return Container(
       decoration: BoxDecoration(gradient: backgroundSla),
-      padding: const EdgeInsets.only(bottom: 75, left: 10, right: 10, top: 30),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(10),
-        child: Scaffold(
-          backgroundColor: Colors.white,
-          body: SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const SizedBox(height: 20),
-              Transform.translate(
-                offset: const Offset(5, -10),
-                child: const Text(
-                  'Foto do Evento',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontFamily: 'RobotoLight',
-                    color: Colors.grey,
-                  ),
-                ),
-              ),
-              GestureDetector(
-                onTap: _pickPhoto,
-                child: Transform.translate(
-                  offset: const Offset(0, -10),
-                  child: Container(
-                    width: 346,
-                    height: 200,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[200],
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: const Color.fromARGB(255, 126, 126, 126), width: 2),
+      padding: EdgeInsets.only(
+        bottom: 75,
+        left: horizontalPadding,
+        right: horizontalPadding,
+        top: 30,
+      ),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: maxFormWidth,
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: Scaffold(
+              backgroundColor: Colors.white,
+              body: SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 20),
+                    Transform.translate(
+                      offset: const Offset(5, -10),
+                      child: const Text(
+                        'Foto do Evento',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontFamily: 'RobotoLight',
+                          color: Colors.grey,
+                        ),
+                      ),
                     ),
-                    child: _selectedImage == null
-                        ? Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.add_a_photo_rounded, size: 70, color: Colors.grey[400]),
-                                const SizedBox(height: 0),
-                              ],
+                    GestureDetector(
+                      onTap: _pickPhoto,
+                      child: Transform.translate(
+                        offset: const Offset(0, -10),
+                        child: AspectRatio(
+                          aspectRatio: 16 / 9,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.grey[200],
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: const Color.fromARGB(255, 126, 126, 126),
+                                width: 2,
+                              ),
                             ),
-                          )
-                        : ClipRRect(
-                            borderRadius: BorderRadius.circular(6),
-                            child: Image.file(
-                              _selectedImage!,
-                              width: double.infinity,
-                              height: 200,
-                              fit: BoxFit.fill,
-                            ),
+                            child: _selectedImage == null
+                                ? Center(
+                                    child: Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          Icons.add_a_photo_rounded,
+                                          size: 70,
+                                          color: Colors.grey[400],
+                                        ),
+                                        const SizedBox(height: 0),
+                                      ],
+                                    ),
+                                  )
+                                : ClipRRect(
+                                    borderRadius: BorderRadius.circular(6),
+                                    child: Image.file(
+                                      _selectedImage!,
+                                      width: double.infinity,
+                                      height: double.infinity,
+                                      fit: BoxFit.cover,
+                                    ),
+                                  ),
                           ),
-                  ),
-                ),
-              ),
-              SizedBox(
-                width: 400,
-                child: TextFormField(
-                  controller: _nomeController,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter some text';
-                    }
-                    return null;
-                  },
-                  decoration: InputDecoration(
-                    labelText: 'Nome do Evento',
-                    labelStyle: const TextStyle(
-                      fontSize: 16,
-                      fontFamily: 'RobotoMedium',
-                      color: Color.fromARGB(221, 151, 151, 151),
+                        ),
+                      ),
                     ),
-                    floatingLabelStyle: const TextStyle(
-                      color: Color.fromARGB(255, 77, 168, 221),
-                      fontFamily: 'RobotoMedium',
-                      fontSize: 16,
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(7.0),
-                      borderSide: const BorderSide(color: Color.fromARGB(255, 83, 83, 83)),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(7.0),
-                      borderSide: const BorderSide(color: Color.fromARGB(255, 77, 168, 221), width: 2),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 14),
-              SizedBox(
-                width: 340,
-                height: 140,
-                child: DottedBorder(
-                  options: const RectDottedBorderOptions(
-                    dashPattern: [3, 1.8],
-                    strokeWidth: 1,
-                    padding: EdgeInsets.all(18),
-                    color: Color.fromARGB(255, 83, 83, 83),
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(7),
-                    child: TextFormField(
-                      controller: _descricaoController,
-                      expands: true,
-                      maxLines: null,
-                      minLines: null,
+                    TextFormField(
+                      controller: _nomeController,
                       validator: (value) {
                         if (value == null || value.isEmpty) {
                           return 'Please enter some text';
                         }
                         return null;
                       },
-                      decoration: const InputDecoration(
-                        labelText: 'Descrição/Sinopse',
-                        labelStyle: TextStyle(
+                      decoration: InputDecoration(
+                        labelText: 'Nome do Evento',
+                        labelStyle: const TextStyle(
                           fontSize: 16,
                           fontFamily: 'RobotoMedium',
                           color: Color.fromARGB(221, 151, 151, 151),
                         ),
-                        floatingLabelStyle: TextStyle(
+                        floatingLabelStyle: const TextStyle(
                           color: Color.fromARGB(255, 77, 168, 221),
                           fontFamily: 'RobotoMedium',
                           fontSize: 16,
                         ),
-                        border: InputBorder.none,
-                        enabledBorder: InputBorder.none,
-                        focusedBorder: InputBorder.none,
-                        contentPadding: EdgeInsets.symmetric(horizontal: 1, vertical: 1),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(7.0),
+                          borderSide: const BorderSide(
+                            color: Color.fromARGB(255, 83, 83, 83),
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(7.0),
+                          borderSide: const BorderSide(
+                            color: Color.fromARGB(255, 77, 168, 221),
+                            width: 2,
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 14),
-              DropdownMenu<Categoria>(
-                label: const Text('Categoria'),
-                initialSelection: _categoriaSelecionada,
-                onSelected: (c) => setState(() => _categoriaSelecionada = c),
-                width: 400,
-                dropdownMenuEntries:
-                    Categoria.values.map((c) => DropdownMenuEntry<Categoria>(value: c, label: c.name)).toList(),
-              ),
-              const SizedBox(height: 14),
-              if (_categoriaSelecionada == Categoria.esportiva) ...[
-                DropdownMenu<CategoriEspotiva>(
-                  label: const Text('Tipo esportivo'),
-                  initialSelection: _categoriaEsportivaSelecionada,
-                  onSelected: (c) => setState(() => _categoriaEsportivaSelecionada = c),
-                  width: 400,
-                  dropdownMenuEntries: CategoriEspotiva.values
-                      .map((c) => DropdownMenuEntry<CategoriEspotiva>(value: c, label: c.name))
-                      .toList(),
-                ),
-                const SizedBox(height: 14),
-                DropdownMenu<Genero>(
-                  label: const Text('Gênero'),
-                  initialSelection: _generoSelecionado,
-                  onSelected: (g) => setState(() => _generoSelecionado = g),
-                  width: 400,
-                  dropdownMenuEntries:
-                      Genero.values.map((g) => DropdownMenuEntry<Genero>(value: g, label: g.name)).toList(),
-                ),
-              ],
-              if (_categoriaSelecionada == Categoria.cultural) ...[
-                TextFormField(
-                  controller: _temaController,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter some text';
-                    }
-                    return null;
-                  },
-                  decoration: InputDecoration(
-                    labelText: 'Tema',
-                    labelStyle: const TextStyle(
-                      fontSize: 16,
-                      fontFamily: 'RobotoMedium',
-                      color: Color.fromARGB(221, 151, 151, 151),
+                    const SizedBox(height: 14),
+                    SizedBox(
+                      height: 140,
+                      child: DottedBorder(
+                        options: const RectDottedBorderOptions(
+                          dashPattern: [3, 1.8],
+                          strokeWidth: 1,
+                          padding: EdgeInsets.all(18),
+                          color: Color.fromARGB(255, 83, 83, 83),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(7),
+                          child: TextFormField(
+                            controller: _descricaoController,
+                            expands: true,
+                            maxLines: null,
+                            minLines: null,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Please enter some text';
+                              }
+                              return null;
+                            },
+                            decoration: const InputDecoration(
+                              labelText: 'Descrição/Sinopse',
+                              labelStyle: TextStyle(
+                                fontSize: 16,
+                                fontFamily: 'RobotoMedium',
+                                color: Color.fromARGB(221, 151, 151, 151),
+                              ),
+                              floatingLabelStyle: TextStyle(
+                                color: Color.fromARGB(255, 77, 168, 221),
+                                fontFamily: 'RobotoMedium',
+                                fontSize: 16,
+                              ),
+                              border: InputBorder.none,
+                              enabledBorder: InputBorder.none,
+                              focusedBorder: InputBorder.none,
+                              contentPadding:
+                                  EdgeInsets.symmetric(horizontal: 1, vertical: 1),
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
-                    floatingLabelStyle: const TextStyle(
-                      color: Color.fromARGB(255, 77, 168, 221),
-                      fontFamily: 'RobotoMedium',
-                      fontSize: 16,
+                    const SizedBox(height: 14),
+                    DropdownMenu<Categoria>(
+                      label: const Text('Categoria'),
+                      initialSelection: _categoriaSelecionada,
+                      onSelected: (c) => setState(() => _categoriaSelecionada = c),
+                      width: maxFormWidth,
+                      dropdownMenuEntries: Categoria.values
+                          .map(
+                            (c) => DropdownMenuEntry<Categoria>(
+                              value: c,
+                              label: c.name,
+                            ),
+                          )
+                          .toList(),
                     ),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(7.0),
-                      borderSide: const BorderSide(color: Color.fromARGB(255, 83, 83, 83)),
+                    const SizedBox(height: 14),
+                    if (_categoriaSelecionada == Categoria.esportiva) ...[
+                      DropdownMenu<CategoriEspotiva>(
+                        label: const Text('Tipo esportivo'),
+                        initialSelection: _categoriaEsportivaSelecionada,
+                        onSelected: (c) =>
+                            setState(() => _categoriaEsportivaSelecionada = c),
+                        width: maxFormWidth,
+                        dropdownMenuEntries: CategoriEspotiva.values
+                            .map(
+                              (c) => DropdownMenuEntry<CategoriEspotiva>(
+                                value: c,
+                                label: c.name,
+                              ),
+                            )
+                            .toList(),
+                      ),
+                      const SizedBox(height: 14),
+                      DropdownMenu<Genero>(
+                        label: const Text('Gênero'),
+                        initialSelection: _generoSelecionado,
+                        onSelected: (g) =>
+                            setState(() => _generoSelecionado = g),
+                        width: maxFormWidth,
+                        dropdownMenuEntries: Genero.values
+                            .map(
+                              (g) => DropdownMenuEntry<Genero>(
+                                value: g,
+                                label: g.name,
+                              ),
+                            )
+                            .toList(),
+                      ),
+                    ],
+                    if (_categoriaSelecionada == Categoria.cultural) ...[
+                      TextFormField(
+                        controller: _temaController,
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter some text';
+                          }
+                          return null;
+                        },
+                        decoration: InputDecoration(
+                          labelText: 'Tema',
+                          labelStyle: const TextStyle(
+                            fontSize: 16,
+                            fontFamily: 'RobotoMedium',
+                            color: Color.fromARGB(221, 151, 151, 151),
+                          ),
+                          floatingLabelStyle: const TextStyle(
+                            color: Color.fromARGB(255, 77, 168, 221),
+                            fontFamily: 'RobotoMedium',
+                            fontSize: 16,
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(7.0),
+                            borderSide: const BorderSide(
+                              color: Color.fromARGB(255, 83, 83, 83),
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(7.0),
+                            borderSide: const BorderSide(
+                              color: Color.fromARGB(255, 77, 168, 221),
+                              width: 2,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      DropdownMenu<CategoriaCultural>(
+                        label: const Text('Tipo cultural'),
+                        initialSelection: _categoriaCulturalSelecionada,
+                        onSelected: (c) =>
+                            setState(() => _categoriaCulturalSelecionada = c),
+                        width: maxFormWidth,
+                        dropdownMenuEntries: CategoriaCultural.values
+                            .map(
+                              (c) => DropdownMenuEntry<CategoriaCultural>(
+                                value: c,
+                                label: c.name,
+                              ),
+                            )
+                            .toList(),
+                      ),
+                      const SizedBox(height: 14),
+                      TextFormField(
+                        controller: _artistasController,
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter some text';
+                          }
+                          return null;
+                        },
+                        decoration: InputDecoration(
+                          labelText: 'Artistas (separe por ";")',
+                          labelStyle: const TextStyle(
+                            fontSize: 16,
+                            fontFamily: 'RobotoMedium',
+                            color: Color.fromARGB(221, 151, 151, 151),
+                          ),
+                          floatingLabelStyle: const TextStyle(
+                            color: Color.fromARGB(255, 77, 168, 221),
+                            fontFamily: 'RobotoMedium',
+                            fontSize: 16,
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(7.0),
+                            borderSide: const BorderSide(
+                              color: Color.fromARGB(255, 83, 83, 83),
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(7.0),
+                            borderSide: const BorderSide(
+                              color: Color.fromARGB(255, 77, 168, 221),
+                              width: 2,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 14),
+                    TextFormField(
+                      controller: _localController,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please enter some text';
+                        }
+                        return null;
+                      },
+                      decoration: InputDecoration(
+                        labelText: 'Local',
+                        labelStyle: const TextStyle(
+                          fontSize: 16,
+                          fontFamily: 'RobotoMedium',
+                          color: Color.fromARGB(221, 151, 151, 151),
+                        ),
+                        floatingLabelStyle: const TextStyle(
+                          color: Color.fromARGB(255, 77, 168, 221),
+                          fontFamily: 'RobotoMedium',
+                          fontSize: 16,
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(7.0),
+                          borderSide: const BorderSide(
+                            color: Color.fromARGB(255, 83, 83, 83),
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(7.0),
+                          borderSide: const BorderSide(
+                            color: Color.fromARGB(255, 77, 168, 221),
+                            width: 2,
+                          ),
+                        ),
+                      ),
                     ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(7.0),
-                      borderSide: const BorderSide(color: Color.fromARGB(255, 77, 168, 221), width: 2),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 14),
-                DropdownMenu<CategoriaCultural>(
-                  label: const Text('Tipo cultural'),
-                  initialSelection: _categoriaCulturalSelecionada,
-                  onSelected: (c) => setState(() => _categoriaCulturalSelecionada = c),
-                  width: 320,
-                  dropdownMenuEntries: CategoriaCultural.values
-                      .map((c) => DropdownMenuEntry<CategoriaCultural>(value: c, label: c.name))
-                      .toList(),
-                ),
-                const SizedBox(height: 14),
-                TextFormField(
-                  controller: _artistasController,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter some text';
-                    }
-                    return null;
-                  },
-                  decoration: InputDecoration(
-                    labelText: 'Artistas (separe por ";")',
-                    labelStyle: const TextStyle(
-                      fontSize: 16,
-                      fontFamily: 'RobotoMedium',
-                      color: Color.fromARGB(221, 151, 151, 151),
-                    ),
-                    floatingLabelStyle: const TextStyle(
-                      color: Color.fromARGB(255, 77, 168, 221),
-                      fontFamily: 'RobotoMedium',
-                      fontSize: 16,
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(7.0),
-                      borderSide: const BorderSide(color: Color.fromARGB(255, 83, 83, 83)),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(7.0),
-                      borderSide: const BorderSide(color: Color.fromARGB(255, 77, 168, 221), width: 2),
-                    ),
-                  ),
-                ),
-              ],
-              const SizedBox(height: 14),
-              SizedBox(
-                width: 400,
-                child: TextFormField(
-                  controller: _localController,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter some text';
-                    }
-                    return null;
-                  },
-                  decoration: InputDecoration(
-                    labelText: 'Local',
-                    labelStyle: const TextStyle(
-                      fontSize: 16,
-                      fontFamily: 'RobotoMedium',
-                      color: Color.fromARGB(221, 151, 151, 151),
-                    ),
-                    floatingLabelStyle: const TextStyle(
-                      color: Color.fromARGB(255, 77, 168, 221),
-                      fontFamily: 'RobotoMedium',
-                      fontSize: 16,
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(7.0),
-                      borderSide: const BorderSide(color: Color.fromARGB(255, 83, 83, 83)),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(7.0),
-                      borderSide: const BorderSide(color: Color.fromARGB(255, 77, 168, 221), width: 2),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 14),
-                  SizedBox(
-                    child: GestureDetector(
+                    const SizedBox(height: 14),
+                    GestureDetector(
                       onTap: () => _selectDate(context),
                       child: Container(
                         height: 50,
                         decoration: BoxDecoration(
                           color: const Color.fromARGB(255, 255, 255, 255),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: const Color.fromARGB(255, 85, 85, 85), width: 1),
+                          border: Border.all(
+                            color: const Color.fromARGB(255, 85, 85, 85),
+                            width: 1,
+                          ),
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -582,17 +670,18 @@ class _CadastroEventoScreenState extends State<CadastroEventoScreen> {
                         ),
                       ),
                     ),
-                  ),
-                   const SizedBox(height: 14),
-                  SizedBox(
-                    child: GestureDetector(
+                    const SizedBox(height: 14),
+                    GestureDetector(
                       onTap: () => _selectTime(context),
                       child: Container(
                         height: 50,
                         decoration: BoxDecoration(
                           color: const Color.fromARGB(255, 255, 255, 255),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: const Color.fromARGB(255, 85, 85, 85), width: 1),
+                          border: Border.all(
+                            color: const Color.fromARGB(255, 85, 85, 85),
+                            width: 1,
+                          ),
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -612,31 +701,69 @@ class _CadastroEventoScreenState extends State<CadastroEventoScreen> {
                         ),
                       ),
                     ),
-                  ),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: 400,
-                height: 52,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color.fromARGB(255, 81, 191, 255),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(50),
-                      side: const BorderSide(color: Color.fromARGB(255, 69, 178, 241), width: 2),
+                    const SizedBox(height: 24),
+                   SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color.fromARGB(255, 81, 191, 255),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(50),
+                          side: const BorderSide(
+                            color: Color.fromARGB(255, 69, 178, 241),
+                            width: 2,
+                          ),
+                        ),
+                      ),
+                      onPressed: _salvarEvento,
+                      child: const Text(
+                        'Salvar Evento',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontFamily: 'RobotoBold',
+                        ),
+                      ),
                     ),
                   ),
-                  onPressed: _salvarEvento,
-                  child: const Text(
-                    'Salvar Evento',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontFamily: 'RobotoBold',
+
+                  const SizedBox(height: 10),
+
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color.fromARGB(255, 255, 81, 81),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(50),
+                          side: const BorderSide(
+                            color: Color.fromARGB(255, 241, 69, 69),
+                            width: 2,
+                          ),
+                        ),
+                      ),
+                      onPressed: () {
+                        context.pop();
+                      },
+                      child: const Text(
+                        'Cancelar',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontFamily: 'RobotoBold',
+                        ),
+                      ),
                     ),
                   ),
+
+
+                    
+                  ],
                 ),
               ),
-            ]),
+            ),
           ),
         ),
       ),

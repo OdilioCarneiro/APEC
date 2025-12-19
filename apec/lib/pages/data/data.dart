@@ -38,6 +38,7 @@ class CardContent {
   String image;
   String title;
   Color backgroundColor;
+  
   CardContent({
     required this.image,
     required this.title,
@@ -99,7 +100,7 @@ CardContentsport(
 ),
 
 CardContentsport(
-  image: 'assets/basket.svg',
+  image: 'assets/basketball.svg',
   title: 'Basquete',
   backgroundColor: const Color.fromARGB(255, 140, 19, 19),
 ),
@@ -114,6 +115,30 @@ CardContentsport(
   image: 'assets/handbol.svg',
   title: 'Handeboll',
   backgroundColor: const Color.fromARGB(255, 140, 19, 19),
+),
+
+CardContentsport(
+  image: 'assets/carimba.svg',
+  title: 'Queimada',
+  backgroundColor: const Color.fromARGB(255, 136, 140, 19),
+),
+
+CardContentsport(
+  image: 'assets/futsal.svg',
+  title: 'Futebol',
+  backgroundColor: const Color.fromARGB(255, 19, 86, 140),
+),
+
+CardContentsport(
+  image: 'assets/corrida.svg',
+  title: 'Corridas',
+  backgroundColor: const Color.fromARGB(255, 140, 19, 19),
+),
+
+CardContentsport(
+  image: 'assets/lutas.svg',
+  title: 'Lutas',
+  backgroundColor: const Color.fromARGB(255, 136, 140, 19),
 ),
 ];
 
