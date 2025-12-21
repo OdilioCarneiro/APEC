@@ -305,63 +305,115 @@ class ApiService {
 }
 
 // ============================================================
-  // SUBEVENTOS
-  // ============================================================
+// SUBEVENTOS
+// ============================================================
 
-  /// Criar subevento:
-  /// - Sem imagem -> JSON
-  /// - Com imagem -> Multipart com campo 'file'
-  static Future<Map<String, dynamic>> criarSubEventoSmart({
-    required Map<String, dynamic> dados,
-    File? imagem,
-  }) async {
-    final uri = _uri('/subeventos'); // <<< ajuste se o endpoint do seu backend for diferente
 
-    // Sem imagem -> JSON
-    if (imagem == null) {
-      final response = await http
-          .post(
-            uri,
-            headers: _headersJson(),
-            body: json.encode(dados),
-          )
-          .timeout(_timeout);
+static Future<List<dynamic>> listarSubEventos({String? eventoPaiId}) async {
+  final uri = eventoPaiId == null || eventoPaiId.isEmpty
+      ? _uri('/subeventos')
+      : _uri('/subeventos?eventoPaiId=$eventoPaiId');
 
-      if (response.statusCode == 201 || response.statusCode == 200) {
-        return _decodeMap(response);
-      }
+  final response = await http.get(uri).timeout(_timeout);
 
-      _throwHttp(response, 'Erro ao criar subevento (JSON)');
-    }
+  if (response.statusCode == 200) {
+    return _decodeList(response);
+  }
 
-    // Com imagem -> Multipart
-    final request = http.MultipartRequest('POST', uri);
+  _throwHttp(response, 'Erro ao listar subeventos');
+}
 
-    // campos
-    dados.forEach((key, value) {
-      if (value == null) return;
-      if (key == 'imagem') return;
-      request.fields[key] = value.toString();
-    });
 
-    // arquivo
-    request.files.add(
-      await http.MultipartFile.fromPath(
-        'file',
-        imagem.path,
-        filename: imagem.path.split('/').last,
-      ),
-    );
+static Future<Map<String, dynamic>> obterSubEvento(String id) async {
+  final response = await http.get(_uri('/subeventos/$id')).timeout(_timeout);
 
-    final streamed = await request.send().timeout(_timeout);
-    final response = await http.Response.fromStream(streamed);
+  if (response.statusCode == 200) {
+    return _decodeMap(response);
+  }
+
+  _throwHttp(response, 'Erro ao obter subevento');
+}
+
+
+static Future<Map<String, dynamic>> criarSubEventoSmart({
+  required Map<String, dynamic> dados,
+  File? imagem,
+}) async {
+  final uri = _uri('/subeventos');
+
+
+  if (imagem == null) {
+    final response = await http
+        .post(
+          uri,
+          headers: _headersJson(),
+          body: json.encode(dados),
+        )
+        .timeout(_timeout);
 
     if (response.statusCode == 201 || response.statusCode == 200) {
       return _decodeMap(response);
     }
 
-    _throwHttp(response, 'Erro ao criar subevento (Multipart)');
+    _throwHttp(response, 'Erro ao criar subevento (JSON)');
   }
+
+
+  final request = http.MultipartRequest('POST', uri);
+
+  // campos
+  dados.forEach((key, value) {
+    if (value == null) return;
+    if (key == 'imagem') return; 
+    request.fields[key] = value.toString();
+  });
+
+  request.files.add(
+    await http.MultipartFile.fromPath(
+      'imagem',
+      imagem.path,
+      filename: imagem.path.split('/').last,
+    ),
+  );
+
+  final streamed = await request.send().timeout(_timeout);
+  final response = await http.Response.fromStream(streamed);
+
+  if (response.statusCode == 201 || response.statusCode == 200) {
+    return _decodeMap(response);
+  }
+
+  _throwHttp(response, 'Erro ao criar subevento (Multipart)');
+}
+
+
+static Future<Map<String, dynamic>> atualizarSubEvento(
+  String id,
+  Map<String, dynamic> dados,
+) async {
+  final response = await http
+      .put(
+        _uri('/subeventos/$id'),
+        headers: _headersJson(),
+        body: json.encode(dados),
+      )
+      .timeout(_timeout);
+
+  if (response.statusCode == 200) {
+    return _decodeMap(response);
+  }
+
+  _throwHttp(response, 'Erro ao atualizar subevento');
+}
+
+
+static Future<void> deletarSubEvento(String id) async {
+  final response = await http.delete(_uri('/subeventos/$id')).timeout(_timeout);
+
+  if (response.statusCode == 200 || response.statusCode == 204) return;
+
+  _throwHttp(response, 'Erro ao deletar subevento');
+}
 
 
 }
