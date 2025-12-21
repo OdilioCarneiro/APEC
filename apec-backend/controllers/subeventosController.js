@@ -1,4 +1,4 @@
-const SubEvento = require('/models/SubEvento');
+const SubEvento = require('../models/SubEvento');
 
 exports.listarSubEventos = async (req, res) => {
   try {
