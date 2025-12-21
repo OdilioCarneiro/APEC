@@ -1,4 +1,4 @@
-
+// apec-backend/controllers/subeventosController.js
 const SubEvento = require('../models/SubEvento');
 
 exports.listarSubEventos = async (req, res) => {
@@ -38,14 +38,8 @@ exports.criarSubEvento = async (req, res) => {
     if (!dados.nome || !dados.data || !dados.horario || !dados.local) {
       return res.status(400).json({ erro: 'Campos obrigatórios faltando' });
     }
-
-    if (!dados.instituicaoId) {
-      return res.status(400).json({ erro: 'instituicaoId é obrigatório' });
-    }
-
-    if (!dados.eventoPaiId) {
-      return res.status(400).json({ erro: 'eventoPaiId é obrigatório' });
-    }
+    if (!dados.instituicaoId) return res.status(400).json({ erro: 'instituicaoId é obrigatório' });
+    if (!dados.eventoPaiId) return res.status(400).json({ erro: 'eventoPaiId é obrigatório' });
 
     if (req.file) dados.imagem = req.file.path;
 
