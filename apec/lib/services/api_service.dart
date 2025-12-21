@@ -15,15 +15,17 @@ class ApiService {
   // ===== Helpers =====
   static Uri _uri(String path) => Uri.parse('$baseUrl$path');
 
+  static String _bodyUtf8(http.Response response) => utf8.decode(response.bodyBytes);
+
   static Map<String, dynamic> _decodeMap(http.Response response) {
-    final body = utf8.decode(response.bodyBytes);
+    final body = _bodyUtf8(response);
     final decoded = json.decode(body);
     if (decoded is Map<String, dynamic>) return decoded;
     throw Exception('Resposta não é um JSON objeto: $body');
   }
 
   static List<dynamic> _decodeList(http.Response response) {
-    final body = utf8.decode(response.bodyBytes);
+    final body = _bodyUtf8(response);
     final decoded = json.decode(body);
     if (decoded is List) return decoded;
     throw Exception('Resposta não é um JSON array: $body');
@@ -33,6 +35,11 @@ class ApiService {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
       };
+
+  // >>> CORREÇÃO: Never (essa função nunca retorna)
+  static Never _throwHttp(http.Response response, String prefix) {
+    throw Exception('$prefix: ${response.statusCode} - ${_bodyUtf8(response)}');
+  }
 
   // ============================================================
   // Sessão (instituicaoId)
@@ -74,30 +81,25 @@ class ApiService {
   }
 
   // ============================================================
-  // INSTITUIÇÃO (igual ao padrão "eventos")
+  // INSTITUIÇÃO
   // ============================================================
 
-  /// Cadastro de instituição (SEM token)
-  /// Backend: POST /api/instituicoes  (upload.single('file'))
-  ///
-  /// Dica: para ficar 100% compatível com multer, este método sempre usa multipart,
-  /// mesmo que imagem seja null.
+  /// Cadastro de instituição (multer file opcional)
+  /// Backend: POST /api/instituicoes (upload.single('file'))
   static Future<Map<String, dynamic>> cadastrarInstituicaoSmart({
     required Map<String, dynamic> dados,
     File? imagem,
   }) async {
     final request = http.MultipartRequest('POST', _uri('/instituicoes'));
 
-    // Campos
     dados.forEach((key, value) {
       if (value != null) request.fields[key] = value.toString();
     });
 
-    // Arquivo (opcional)
     if (imagem != null) {
       request.files.add(
         await http.MultipartFile.fromPath(
-          'file', // mesmo nome que você usa no evento
+          'file',
           imagem.path,
           filename: imagem.path.split('/').last,
         ),
@@ -111,9 +113,7 @@ class ApiService {
       return _decodeMap(response);
     }
 
-    throw Exception(
-      'Erro ao cadastrar instituição: ${response.statusCode} - ${utf8.decode(response.bodyBytes)}',
-    );
+    _throwHttp(response, 'Erro ao cadastrar instituição');
   }
 
   /// Login instituição (SEM token)
@@ -136,16 +136,14 @@ class ApiService {
 
       final id = data['instituicaoId']?.toString();
       if (id == null || id.isEmpty) {
-        throw Exception('Login OK, mas resposta sem instituicaoId: ${utf8.decode(response.bodyBytes)}');
+        throw Exception('Login OK, mas resposta sem instituicaoId: ${_bodyUtf8(response)}');
       }
 
       await salvarInstituicaoId(id);
       return data;
     }
 
-    throw Exception(
-      'Erro ao logar: ${response.statusCode} - ${utf8.decode(response.bodyBytes)}',
-    );
+    _throwHttp(response, 'Erro ao logar');
   }
 
   /// GET /api/instituicoes/:id
@@ -156,9 +154,7 @@ class ApiService {
       return _decodeMap(response);
     }
 
-    throw Exception(
-      'Erro ao obter instituição: ${response.statusCode} - ${utf8.decode(response.bodyBytes)}',
-    );
+    _throwHttp(response, 'Erro ao obter instituição');
   }
 
   /// Busca dados da instituição logada (usando instituicaoId salvo)
@@ -171,7 +167,7 @@ class ApiService {
   }
 
   // ============================================================
-  // EVENTOS (NÃO ALTERADO)
+  // EVENTOS
   // ============================================================
 
   static Future<List<dynamic>> listarEventos() async {
@@ -181,9 +177,7 @@ class ApiService {
       return _decodeList(response);
     }
 
-    throw Exception(
-      'Erro ao listar eventos: ${response.statusCode} - ${utf8.decode(response.bodyBytes)}',
-    );
+    _throwHttp(response, 'Erro ao listar eventos');
   }
 
   static Future<Map<String, dynamic>> obterEvento(String id) async {
@@ -193,31 +187,46 @@ class ApiService {
       return _decodeMap(response);
     }
 
-    throw Exception(
-      'Erro ao obter evento: ${response.statusCode} - ${utf8.decode(response.bodyBytes)}',
-    );
+    _throwHttp(response, 'Erro ao obter evento');
   }
 
   static Future<List<dynamic>> listarEventosPorCategoria(String categoria) async {
-    final response =
-        await http.get(_uri('/eventos/categoria/$categoria')).timeout(_timeout);
+    final response = await http.get(_uri('/eventos/categoria/$categoria')).timeout(_timeout);
 
     if (response.statusCode == 200) {
       return _decodeList(response);
     }
 
-    throw Exception(
-      'Erro ao listar eventos por categoria: ${response.statusCode} - ${utf8.decode(response.bodyBytes)}',
-    );
+    _throwHttp(response, 'Erro ao listar eventos por categoria');
   }
 
+  /// Lista eventos da instituição logada:
+  /// Backend: GET /api/eventos/instituicao/:instituicaoId
+  static Future<List<dynamic>> meusEventos() async {
+    final instituicaoId = await lerInstituicaoId();
+    if (instituicaoId == null || instituicaoId.isEmpty) {
+      throw Exception('Sem instituicaoId (não logado).');
+    }
+
+    final response = await http.get(_uri('/eventos/instituicao/$instituicaoId')).timeout(_timeout);
+
+    if (response.statusCode == 200) {
+      return _decodeList(response);
+    }
+
+    _throwHttp(response, 'Erro ao listar eventos da instituição');
+  }
+
+  /// Criar evento:
+  /// - Sem imagem -> JSON
+  /// - Com imagem -> Multipart com campo 'file'
   static Future<Map<String, dynamic>> criarEventoSmart({
     required Map<String, dynamic> dados,
     File? imagem,
   }) async {
     final uri = _uri('/eventos');
 
-    // Sem imagem -> JSON (do jeito que você já usava)
+    // Sem imagem -> JSON
     if (imagem == null) {
       final response = await http
           .post(
@@ -231,18 +240,20 @@ class ApiService {
         return _decodeMap(response);
       }
 
-      throw Exception(
-        'Erro ao criar evento (JSON): ${response.statusCode} - ${utf8.decode(response.bodyBytes)}',
-      );
+      _throwHttp(response, 'Erro ao criar evento (JSON)');
     }
 
     // Com imagem -> Multipart
     final request = http.MultipartRequest('POST', uri);
 
+    // campos
     dados.forEach((key, value) {
-      if (value != null && key != 'imagem') request.fields[key] = value.toString();
+      if (value == null) return;
+      if (key == 'imagem') return;
+      request.fields[key] = value.toString();
     });
 
+    // arquivo
     request.files.add(
       await http.MultipartFile.fromPath(
         'file',
@@ -258,9 +269,7 @@ class ApiService {
       return _decodeMap(response);
     }
 
-    throw Exception(
-      'Erro ao criar evento (Multipart): ${response.statusCode} - ${utf8.decode(response.bodyBytes)}',
-    );
+    _throwHttp(response, 'Erro ao criar evento (Multipart)');
   }
 
   static Future<Map<String, dynamic>> atualizarEvento(
@@ -279,23 +288,81 @@ class ApiService {
       return _decodeMap(response);
     }
 
-    throw Exception(
-      'Erro ao atualizar evento: ${response.statusCode} - ${utf8.decode(response.bodyBytes)}',
-    );
+    _throwHttp(response, 'Erro ao atualizar evento');
   }
 
-  static Future<void> deletarEvento(String id) async {
-    final response = await http.delete(_uri('/eventos/$id')).timeout(_timeout);
+ static Future<void> deletarEvento(String id) async {
+  final response = await http
+      .delete(
+        _uri('/eventos/$id'),
+        headers: _headersJson(),
+      )
+      .timeout(_timeout);
 
-    if (response.statusCode == 200 || response.statusCode == 204) return;
+  if (response.statusCode == 200 || response.statusCode == 204) return;
 
-    throw Exception(
-      'Erro ao deletar evento: ${response.statusCode} - ${utf8.decode(response.bodyBytes)}',
-    );
-  }
-  static Future<List<dynamic>> meusEventos() async {
-  
-  return [];
+  _throwHttp(response, 'Erro ao deletar evento');
 }
+
+// ============================================================
+  // SUBEVENTOS
+  // ============================================================
+
+  /// Criar subevento:
+  /// - Sem imagem -> JSON
+  /// - Com imagem -> Multipart com campo 'file'
+  static Future<Map<String, dynamic>> criarSubEventoSmart({
+    required Map<String, dynamic> dados,
+    File? imagem,
+  }) async {
+    final uri = _uri('/subeventos'); // <<< ajuste se o endpoint do seu backend for diferente
+
+    // Sem imagem -> JSON
+    if (imagem == null) {
+      final response = await http
+          .post(
+            uri,
+            headers: _headersJson(),
+            body: json.encode(dados),
+          )
+          .timeout(_timeout);
+
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        return _decodeMap(response);
+      }
+
+      _throwHttp(response, 'Erro ao criar subevento (JSON)');
+    }
+
+    // Com imagem -> Multipart
+    final request = http.MultipartRequest('POST', uri);
+
+    // campos
+    dados.forEach((key, value) {
+      if (value == null) return;
+      if (key == 'imagem') return;
+      request.fields[key] = value.toString();
+    });
+
+    // arquivo
+    request.files.add(
+      await http.MultipartFile.fromPath(
+        'file',
+        imagem.path,
+        filename: imagem.path.split('/').last,
+      ),
+    );
+
+    final streamed = await request.send().timeout(_timeout);
+    final response = await http.Response.fromStream(streamed);
+
+    if (response.statusCode == 201 || response.statusCode == 200) {
+      return _decodeMap(response);
+    }
+
+    _throwHttp(response, 'Erro ao criar subevento (Multipart)');
+  }
+
+
 }
 

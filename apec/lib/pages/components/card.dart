@@ -1,64 +1,52 @@
 import 'package:flutter/material.dart';
-import 'package:apec/pages/data/model.dart';
 import 'package:go_router/go_router.dart';
+import 'package:apec/pages/data/model.dart';
 
-/// Widget reutilizável que exibe um card de evento
 class EventCardComponent extends StatelessWidget {
   final Evento evento;
-  final Instituicao? instituicao; // Opcional se quiser adicionar depois
+
+  /// Na Home: false (padrão)
+  /// No admin/perfil instituição: true
+  final bool isDono;
 
   const EventCardComponent({
-    required this.evento,
-    this.instituicao,
     super.key,
+    required this.evento,
+    this.isDono = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    // Se seu Evento.fromAPI preencher evento.instituicao, dá pra mostrar bolinha.
+    final inst = evento.instituicao;
+
     return Center(
       child: Card(
-        clipBehavior: Clip.hardEdge, // evita “vazar” conteúdo fora do card
+        clipBehavior: Clip.hardEdge,
         child: SizedBox(
           width: 305,
           height: 140,
           child: Stack(
             children: [
-              // Imagem de fundo (instituição) se disponível
-              if (instituicao != null)
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(0),
-                  child: Image.network(
-                    instituicao!.imagem,
-                  fit: BoxFit.cover,
-                  width: double.infinity,
-                  height: double.infinity,
-                  errorBuilder: (context, error, stackTrace) =>
-                      const Center(child: Icon(Icons.broken_image)),
-                ),
-              ),
-
-              // Camada por cima (imagem do evento)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(0),
+              Positioned.fill(
                 child: Image.network(
                   evento.imagem,
                   fit: BoxFit.cover,
-                  width: double.infinity,
-                  height: double.infinity,
-                  errorBuilder: (context, error, stackTrace) =>
-                      const Center(child: Icon(Icons.broken_image)),
+                  errorBuilder: (_, __, ___) => Container(
+                    color: Colors.grey.shade300,
+                    child: const Center(child: Icon(Icons.broken_image)),
+                  ),
                 ),
               ),
 
-              // Sombra inferior para contraste do texto
               Container(
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   boxShadow: [
                     BoxShadow(
-                      color: const Color.fromARGB(120, 0, 0, 0),
+                      color: Color.fromARGB(120, 0, 0, 0),
                       spreadRadius: 6,
                       blurRadius: 18,
-                      offset: const Offset(0, 80),
+                      offset: Offset(0, 80),
                     ),
                   ],
                 ),
@@ -83,9 +71,8 @@ class EventCardComponent extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: 0),
                       Text(
-                        '${evento.data}  • ${evento.horario}',
+                        '${evento.data} • ${evento.horario}',
                         style: const TextStyle(
                           color: Colors.white70,
                           fontFamily: 'Roboto',
@@ -105,13 +92,13 @@ class EventCardComponent extends StatelessWidget {
                 ),
               ),
 
-           
-              if (instituicao != null)
+              // bolinha (só aparece se tiver populate/URL)
+              if (inst != null && inst.imagem.isNotEmpty)
                 Positioned(
                   top: 6,
                   right: 14,
                   child: _GradientCircleAvatar(
-                    imageUrl: instituicao!.imagem,
+                    imageUrl: inst.imagem,
                     size: 40,
                     borderThickness: 2,
                     gradientColors: const [
@@ -122,15 +109,16 @@ class EventCardComponent extends StatelessWidget {
                   ),
                 ),
 
-      
               Positioned.fill(
                 child: Material(
                   color: Colors.transparent,
                   child: InkWell(
                     splashColor: Colors.blue.withAlpha(80),
-                    highlightColor: const Color.fromARGB(255, 45, 155, 244),
-                    onTap: (){
-                      context.push('/evento', extra: evento);
+                    onTap: () {
+                      context.push(
+                        '/evento',
+                        extra: {'evento': evento, 'isDono': isDono},
+                      );
                     },
                   ),
                 ),
@@ -145,7 +133,7 @@ class EventCardComponent extends StatelessWidget {
 
 class _GradientCircleAvatar extends StatelessWidget {
   final String imageUrl;
-  final double size; 
+  final double size;
   final double borderThickness;
   final List<Color> gradientColors;
 
@@ -163,7 +151,6 @@ class _GradientCircleAvatar extends StatelessWidget {
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        // Gradiente como "borda" externa
         gradient: LinearGradient(
           colors: gradientColors,
           begin: Alignment.topCenter,
@@ -175,14 +162,13 @@ class _GradientCircleAvatar extends StatelessWidget {
         child: Container(
           decoration: const BoxDecoration(
             shape: BoxShape.circle,
-            color: Colors.white, 
+            color: Colors.white,
           ),
           child: ClipOval(
             child: Image.network(
               imageUrl,
               fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) =>
-                  const Center(child: Icon(Icons.person_off)),
+              errorBuilder: (_, __, ___) => const Center(child: Icon(Icons.person_off)),
             ),
           ),
         ),

@@ -95,7 +95,7 @@ class SegundaTela extends StatelessWidget {
                           width: buttonWidth,
                           height: buttonHeight,
                           child: OutlinedButton(
-                            onPressed: () => context.go('/tabview'),
+                            onPressed: () => context.go('/home'),
                             style: OutlinedButton.styleFrom(
                               shape: const StadiumBorder(),
                               side: const BorderSide(

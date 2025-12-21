@@ -21,38 +21,28 @@ class _HomePageState extends State<HomePage> {
     _eventosAPI = ApiService.listarEventos();
   }
 
-
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
     final screenWidth = size.width;
 
-    // padding responsivo da página
-    final horizontalPadding = screenWidth * 0.05; // 5% de cada lado, com clamp
-    final clampedPadding =
-        horizontalPadding.clamp(16.0, 32.0); // mínimo 16, máximo 32
+    final horizontalPadding = screenWidth * 0.05;
+    final clampedPadding = horizontalPadding.clamp(16.0, 32.0);
 
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
         bottom: false,
         child: SingleChildScrollView(
-          padding: EdgeInsets.symmetric(
-            horizontal: clampedPadding,
-            vertical: 20,
-          ),
+          padding: EdgeInsets.symmetric(horizontal: clampedPadding, vertical: 20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Barra de busca
               Container(
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color: const Color(0x33263238),
-                    width: 1,
-                  ),
+                  border: Border.all(color: const Color(0x33263238), width: 1),
                 ),
                 child: const CupertinoSearchTextField(
                   placeholder: 'Search',
@@ -61,8 +51,6 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
               const SizedBox(height: 16),
-
-              // Título
               const Text(
                 'Eventos culturais',
                 style: TextStyle(
@@ -74,7 +62,6 @@ class _HomePageState extends State<HomePage> {
               ),
               const SizedBox(height: 8),
 
-              // Lista de eventos
               FutureBuilder<List<dynamic>>(
                 future: _eventosAPI,
                 builder: (context, snapshot) {
@@ -92,11 +79,7 @@ class _HomePageState extends State<HomePage> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(
-                              Icons.error_outline,
-                              size: 64,
-                              color: Colors.red,
-                            ),
+                            const Icon(Icons.error_outline, size: 64, color: Colors.red),
                             const SizedBox(height: 16),
                             Text(
                               'Erro ao carregar eventos:\n${snapshot.error}',
@@ -116,55 +99,34 @@ class _HomePageState extends State<HomePage> {
                   }
 
                   final eventos = snapshot.data ?? [];
-
                   if (eventos.isEmpty) {
-                    return Padding(
-                      padding: const EdgeInsets.only(top: 40),
-                      child: Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(
-                              Icons.event_note,
-                              size: 64,
-                              color: Colors.grey,
-                            ),
-                            const SizedBox(height: 16),
-                            const Text('Nenhum evento encontrado'),
-                            const SizedBox(height: 16),
-                          ],
-                        ),
-                      ),
+                    return const Padding(
+                      padding: EdgeInsets.only(top: 40),
+                      child: Center(child: Text('Nenhum evento encontrado')),
                     );
                   }
 
-                  // Grade responsiva de cards usando LayoutBuilder + Wrap
                   return Padding(
                     padding: const EdgeInsets.only(top: 8.0),
                     child: LayoutBuilder(
                       builder: (context, constraints) {
                         final maxWidth = constraints.maxWidth;
 
-                        // largura mínima desejada por card
                         const minCardWidth = 260.0;
                         const maxCardWidth = 340.0;
 
-                        // número de colunas possível
-                        int columns =
-                            (maxWidth / minCardWidth).floor().clamp(1, 4);
-                        final effectiveCardWidth =
-                            (maxWidth - (columns - 1) * 18) / columns;
-                        final cardWidth =
-                            effectiveCardWidth.clamp(minCardWidth, maxCardWidth);
+                        final columns = (maxWidth / minCardWidth).floor().clamp(1, 4);
+                        final effectiveCardWidth = (maxWidth - (columns - 1) * 18) / columns;
+                        final cardWidth = effectiveCardWidth.clamp(minCardWidth, maxCardWidth);
 
                         return Wrap(
                           spacing: 18,
                           runSpacing: 18,
                           children: eventos.map((e) {
-                            final evento = Evento.fromAPI(e);
+                            final evento = Evento.fromAPI(e as Map<String, dynamic>);
                             return SizedBox(
                               width: cardWidth,
-                              child: EventCardComponent(evento: evento),
+                              child: EventCardComponent(evento: evento), // isDono = false
                             );
                           }).toList(),
                         );
