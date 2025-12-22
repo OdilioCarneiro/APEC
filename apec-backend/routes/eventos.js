@@ -11,13 +11,10 @@ router.get('/instituicao/:instituicaoId', eventoController.listarEventosPorInsti
 // POST
 router.post('/', upload.single('file'), eventoController.criarEvento);
 
-// ROTA NOVA (tem que vir antes do /:id)
+// Rota de rename (antes do /:id)
 router.put('/:id/renomear-categoria', eventoController.renomearCategoriaSubeventos);
-router.get('/:id', eventoController.obterEvento);
-router.put('/:id', eventoController.atualizarEvento);
 
-
-// :id por último
+// CRUD por id
 router.get('/:id', eventoController.obterEvento);
 router.put('/:id', eventoController.atualizarEvento);
 router.delete('/:id', eventoController.deletarEvento);

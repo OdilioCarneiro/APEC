@@ -41,6 +41,10 @@ exports.criarSubEvento = async (req, res) => {
     if (!dados.instituicaoId) return res.status(400).json({ erro: 'instituicaoId é obrigatório' });
     if (!dados.eventoPaiId) return res.status(400).json({ erro: 'eventoPaiId é obrigatório' });
 
+    // categoria (ROW)
+    dados.categoria = (dados.categoria || 'Subeventos').toString().trim();
+    if (!dados.categoria) dados.categoria = 'Subeventos';
+
     if (req.file) dados.imagem = req.file.path;
 
     const novo = new SubEvento(dados);
@@ -55,6 +59,7 @@ exports.criarSubEvento = async (req, res) => {
     return res.status(400).json({ erro: 'Erro ao criar subevento', detalhes: error.message });
   }
 };
+
 
 exports.atualizarSubEvento = async (req, res) => {
   try {

@@ -106,38 +106,59 @@ exports.listarEventosPorInstituicao = async (req, res) => {
 };
 
 // RENOMEAR categoria (atualiza evento + subeventos)
+function escapeRegex(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 exports.renomearCategoriaSubeventos = async (req, res) => {
   try {
-    const { id } = req.params;          // id do evento
-    const { antiga, nova } = req.body;  // textos antigo e novo
+    const { id } = req.params;
+    let { antiga, nova } = req.body;
 
-    console.log('RENOMEAR >>>', { id, antiga, nova });
+    antiga = (antiga || '').toString().trim();
+    nova = (nova || '').toString().trim();
 
-    const evento = await Evento.findById(id);
-    if (!evento) {
-      return res.status(404).json({ message: 'Evento não encontrado' });
+    if (!antiga || !nova) {
+      return res.status(400).json({ message: 'antiga e nova são obrigatórias' });
     }
 
-    console.log('ANTES categoriasSubeventos:', evento.categoriasSubeventos);
+    const evento = await Evento.findById(id);
+    if (!evento) return res.status(404).json({ message: 'Evento não encontrado' });
 
-    // 1) Renomeia dentro do array categoriasSubeventos (sem criar nova row)
-    evento.categoriasSubeventos = evento.categoriasSubeventos.map((cat) =>
-      cat === antiga ? nova : cat
+    // 1) renomeia no array (case-insensitive + trim)
+    const cats = (evento.categoriasSubeventos || []).map((c) => (c || '').toString().trim());
+    evento.categoriasSubeventos = cats.map((c) =>
+      c.toLowerCase() === antiga.toLowerCase() ? nova : c
     );
+
+    // garante "Subeventos" no começo e remove duplicados por case
+    const seen = new Set();
+    const unique = [];
+    for (const c of evento.categoriasSubeventos) {
+      const key = c.toLowerCase();
+      if (!c) continue;
+      if (!seen.has(key)) {
+        seen.add(key);
+        unique.push(c);
+      }
+    }
+    // força base
+    evento.categoriasSubeventos = ['Subeventos', ...unique.filter((c) => c.toLowerCase() !== 'subeventos')];
+
     await evento.save();
 
-    console.log('DEPOIS categoriasSubeventos:', evento.categoriasSubeventos);
-
-    // 2) Atualiza todos os subeventos que apontavam para essa categoria (campo "categoria")
-    const result = await SubEvento.updateMany(
-      { eventoPaiId: id, categoria: antiga },
+    // 2) migra subeventos (regex case-insensitive)
+    await SubEvento.updateMany(
+      { eventoPaiId: id, categoria: new RegExp(`^${escapeRegex(antiga)}$`, 'i') },
       { $set: { categoria: nova } }
     );
-    console.log('updateMany SubEvento result:', result);
 
-    return res.json(evento);
+    // devolve evento atualizado (com populate se quiser)
+    const eventoPop = await Evento.findById(id).populate('instituicaoId', 'nome fotoUrl');
+    return res.json(eventoPop);
   } catch (err) {
     console.error('Erro ao renomear categoria:', err);
-    res.status(500).json({ message: 'Erro ao renomear categoria' });
+    return res.status(500).json({ message: 'Erro ao renomear categoria' });
   }
 };
+

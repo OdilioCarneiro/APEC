@@ -30,11 +30,11 @@ const connectDB = async () => {
 connectDB();
 
 // Rotas
-app.use('/api/eventos', require('./routes/eventos'));
-app.use('/api/instituicoes', require('./routes/instituicoes'));
+
 app.use('/api/eventos', require('./routes/eventos'));
 app.use('/api/instituicoes', require('./routes/instituicoes'));
 app.use('/api/subeventos', require('./routes/subeventos'));
+
 
 
 // Rota de saúde
