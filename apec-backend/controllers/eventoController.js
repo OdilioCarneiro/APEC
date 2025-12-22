@@ -1,3 +1,4 @@
+// controllers/eventoController.js
 const Evento = require('../models/Evento');
 const SubEvento = require('../models/Subevento');
 
@@ -105,17 +106,19 @@ exports.listarEventosPorInstituicao = async (req, res) => {
 };
 
 // RENOMEAR categoria (atualiza evento + subeventos)
-// eventoController.js
-// RENOMEAR categoria (atualiza evento + subeventos)
 exports.renomearCategoriaSubeventos = async (req, res) => {
   try {
     const { id } = req.params;          // id do evento
-    const { antiga, nova } = req.body;  // títulos antigo e novo
+    const { antiga, nova } = req.body;  // textos antigo e novo
+
+    console.log('RENOMEAR >>>', { id, antiga, nova });
 
     const evento = await Evento.findById(id);
     if (!evento) {
       return res.status(404).json({ message: 'Evento não encontrado' });
     }
+
+    console.log('ANTES categoriasSubeventos:', evento.categoriasSubeventos);
 
     // 1) Renomeia dentro do array categoriasSubeventos (sem criar nova row)
     evento.categoriasSubeventos = evento.categoriasSubeventos.map((cat) =>
@@ -123,11 +126,14 @@ exports.renomearCategoriaSubeventos = async (req, res) => {
     );
     await evento.save();
 
-    // 2) Atualiza todos os subeventos que apontavam para essa categoria
-    await SubEvento.updateMany(
-      { eventoPaiId: id, categoriaId: antiga },
-      { $set: { categoriaId: nova } }
+    console.log('DEPOIS categoriasSubeventos:', evento.categoriasSubeventos);
+
+    // 2) Atualiza todos os subeventos que apontavam para essa categoria (campo "categoria")
+    const result = await SubEvento.updateMany(
+      { eventoPaiId: id, categoria: antiga },
+      { $set: { categoria: nova } }
     );
+    console.log('updateMany SubEvento result:', result);
 
     return res.json(evento);
   } catch (err) {
@@ -135,5 +141,3 @@ exports.renomearCategoriaSubeventos = async (req, res) => {
     res.status(500).json({ message: 'Erro ao renomear categoria' });
   }
 };
-
-

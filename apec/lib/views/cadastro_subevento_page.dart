@@ -195,6 +195,7 @@ class _CadastroSubEventoScreenState extends State<CadastroSubEventoScreen> {
   try {
     setState(() => _loading = true);
 
+    // dentro de _salvarSubEvento()
     final dados = <String, dynamic>{
       'nome': _nomeController.text.trim(),
       'categoria': (_categoriaSelecionadaTexto ?? '').trim(),
@@ -208,6 +209,7 @@ class _CadastroSubEventoScreenState extends State<CadastroSubEventoScreen> {
       'instituicaoId': instituicaoId,
       'eventoPaiId': widget.eventoPai.id,
     };
+
 
     // IMPORTANTE: retorna Map<String, dynamic>
     final criado = await ApiService.criarSubEventoSmart(

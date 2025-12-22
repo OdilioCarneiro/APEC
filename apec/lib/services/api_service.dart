@@ -1,3 +1,4 @@
+// services/api_service.dart
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -9,10 +10,10 @@ class ApiService {
   static const String baseUrl = 'https://apec-1-25ad.onrender.com/api';
   static const Duration _timeout = Duration(seconds: 20);
 
-  // ===== Storage keys =====
+  // Storage keys
   static const String _kInstituicaoIdKey = 'instituicaoId';
 
-  // ===== Helpers =====
+  // Helpers
   static Uri _uri(String path) => Uri.parse('$baseUrl$path');
 
   static String _bodyUtf8(http.Response response) => utf8.decode(response.bodyBytes);
@@ -40,10 +41,7 @@ class ApiService {
     throw Exception('$prefix: ${response.statusCode} - ${_bodyUtf8(response)}');
   }
 
-  // ============================================================
-  // Sessão (instituicaoId)
-  // ============================================================
-
+  // Sessão
   static Future<void> salvarInstituicaoId(String id) async {
     final sp = await SharedPreferences.getInstance();
     await sp.setString(_kInstituicaoIdKey, id);
@@ -64,10 +62,7 @@ class ApiService {
     return id != null && id.isNotEmpty;
   }
 
-  // ============================================================
-  // Health (opcional)
-  // ============================================================
-
+  // Health
   static Future<bool> verificarSaude() async {
     try {
       final response = await http
@@ -79,12 +74,8 @@ class ApiService {
     }
   }
 
-  // ============================================================
   // INSTITUIÇÃO
-  // ============================================================
 
-  /// Cadastro de instituição (multer file opcional)
-  /// Backend: POST /api/instituicoes (upload.single('file'))
   static Future<Map<String, dynamic>> cadastrarInstituicaoSmart({
     required Map<String, dynamic> dados,
     File? imagem,
@@ -115,9 +106,6 @@ class ApiService {
     _throwHttp(response, 'Erro ao cadastrar instituição');
   }
 
-  /// Login instituição (SEM token)
-  /// Backend: POST /api/instituicoes/login
-  /// Retorna: { instituicaoId, nome, email }
   static Future<Map<String, dynamic>> loginInstituicao({
     required String email,
     required String senha,
@@ -145,7 +133,6 @@ class ApiService {
     _throwHttp(response, 'Erro ao logar');
   }
 
-  /// GET /api/instituicoes/:id
   static Future<Map<String, dynamic>> obterInstituicaoPorId(String id) async {
     final response = await http.get(_uri('/instituicoes/$id')).timeout(_timeout);
 
@@ -156,7 +143,6 @@ class ApiService {
     _throwHttp(response, 'Erro ao obter instituição');
   }
 
-  /// Busca dados da instituição logada (usando instituicaoId salvo)
   static Future<Map<String, dynamic>> minhaInstituicao() async {
     final id = await lerInstituicaoId();
     if (id == null || id.isEmpty) {
@@ -165,9 +151,7 @@ class ApiService {
     return obterInstituicaoPorId(id);
   }
 
-  // ============================================================
   // EVENTOS
-  // ============================================================
 
   static Future<List<dynamic>> listarEventos() async {
     final response = await http.get(_uri('/eventos')).timeout(_timeout);
@@ -190,7 +174,8 @@ class ApiService {
   }
 
   static Future<List<dynamic>> listarEventosPorCategoria(String categoria) async {
-    final response = await http.get(_uri('/eventos/categoria/$categoria')).timeout(_timeout);
+    final response =
+        await http.get(_uri('/eventos/categoria/$categoria')).timeout(_timeout);
 
     if (response.statusCode == 200) {
       return _decodeList(response);
@@ -199,15 +184,14 @@ class ApiService {
     _throwHttp(response, 'Erro ao listar eventos por categoria');
   }
 
-  /// Lista eventos da instituição logada:
-  /// Backend: GET /api/eventos/instituicao/:instituicaoId
   static Future<List<dynamic>> meusEventos() async {
     final instituicaoId = await lerInstituicaoId();
     if (instituicaoId == null || instituicaoId.isEmpty) {
       throw Exception('Sem instituicaoId (não logado).');
     }
 
-    final response = await http.get(_uri('/eventos/instituicao/$instituicaoId')).timeout(_timeout);
+    final response =
+        await http.get(_uri('/eventos/instituicao/$instituicaoId')).timeout(_timeout);
 
     if (response.statusCode == 200) {
       return _decodeList(response);
@@ -216,16 +200,12 @@ class ApiService {
     _throwHttp(response, 'Erro ao listar eventos da instituição');
   }
 
-  /// Criar evento:
-  /// - Sem imagem -> JSON
-  /// - Com imagem -> Multipart com campo 'file'
   static Future<Map<String, dynamic>> criarEventoSmart({
     required Map<String, dynamic> dados,
     File? imagem,
   }) async {
     final uri = _uri('/eventos');
 
-    // Sem imagem -> JSON
     if (imagem == null) {
       final response = await http
           .post(
@@ -242,17 +222,14 @@ class ApiService {
       _throwHttp(response, 'Erro ao criar evento (JSON)');
     }
 
-    // Com imagem -> Multipart
     final request = http.MultipartRequest('POST', uri);
 
-    // campos
     dados.forEach((key, value) {
       if (value == null) return;
       if (key == 'imagem') return;
       request.fields[key] = value.toString();
     });
 
-    // arquivo
     request.files.add(
       await http.MultipartFile.fromPath(
         'file',
@@ -290,26 +267,21 @@ class ApiService {
     _throwHttp(response, 'Erro ao atualizar evento');
   }
 
-  /// Atualiza SOMENTE as categorias/títulos (rows) de subeventos do evento.
-  /// Requer backend aceitando PATCH /api/eventos/:id
-  /// com body { categoriasSubeventos: ["Subeventos","Música",...] }
- static Future<Map<String, dynamic>> atualizarCategoriasSubeventos({
-  required String eventoId,
-  required List<String> categoriasTitulos,
-}) async {
-  final response = await http
-      .put(
-        _uri('/eventos/$eventoId'),
-        headers: _headersJson(),
-        body: json.encode({'categoriasSubeventos': categoriasTitulos}),
-      )
-      .timeout(_timeout);
+  static Future<Map<String, dynamic>> atualizarCategoriasSubeventos({
+    required String eventoId,
+    required List<String> categoriasTitulos,
+  }) async {
+    final response = await http
+        .put(
+          _uri('/eventos/$eventoId'),
+          headers: _headersJson(),
+          body: json.encode({'categoriasSubeventos': categoriasTitulos}),
+        )
+        .timeout(_timeout);
 
-  if (response.statusCode == 200) return _decodeMap(response);
-  _throwHttp(response, 'Erro ao atualizar categoriasSubeventos');
-}
-
-
+    if (response.statusCode == 200) return _decodeMap(response);
+    _throwHttp(response, 'Erro ao atualizar categoriasSubeventos');
+  }
 
   static Future<void> deletarEvento(String id) async {
     final response = await http
@@ -324,14 +296,11 @@ class ApiService {
     _throwHttp(response, 'Erro ao deletar evento');
   }
 
-  // ============================================================
   // SUBEVENTOS
-  // ============================================================
 
   static Future<List<dynamic>> listarSubEventos({String? eventoPaiId}) async {
     final base = _uri('/subeventos');
 
-    // Melhor do que interpolar string: garante encoding da query.
     final uri = (eventoPaiId == null || eventoPaiId.isEmpty)
         ? base
         : base.replace(queryParameters: {'eventoPaiId': eventoPaiId});
@@ -379,14 +348,12 @@ class ApiService {
 
     final request = http.MultipartRequest('POST', uri);
 
-    // campos
     dados.forEach((key, value) {
       if (value == null) return;
       if (key == 'imagem') return;
       request.fields[key] = value.toString();
     });
 
-    // arquivo
     request.files.add(
       await http.MultipartFile.fromPath(
         'imagem',
@@ -448,6 +415,4 @@ class ApiService {
     if (response.statusCode == 200) return _decodeMap(response);
     _throwHttp(response, 'Erro ao renomear categoria');
   }
-
-  
 }
