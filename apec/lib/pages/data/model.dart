@@ -1,3 +1,6 @@
+// model.dart
+// Modelos do app (Instituição, Evento, SubEvento, etc.)
+
 // ---------------- INSTITUIÇÃO ----------------
 
 class Instituicao {
@@ -116,6 +119,19 @@ class Jogo {
     required this.local,
   });
 
+  factory Jogo.fromAPI(Map<String, dynamic> j) {
+    int _toInt(dynamic v) => int.tryParse((v ?? '0').toString()) ?? 0;
+
+    return Jogo(
+      timeA: (j['timeA'] ?? '').toString(),
+      timeB: (j['timeB'] ?? '').toString(),
+      placarA: _toInt(j['placarA']),
+      placarB: _toInt(j['placarB']),
+      data: (j['data'] ?? '').toString(),
+      local: (j['local'] ?? '').toString(),
+    );
+  }
+
   Map<String, dynamic> toMap() {
     return {
       'timeA': timeA,
@@ -143,6 +159,24 @@ class JogoNatacao {
     required this.data,
   });
 
+  factory JogoNatacao.fromAPI(Map<String, dynamic> j) {
+    ModalidadeNatacao _parseModalidade(String? v) {
+      if (v == null) return ModalidadeNatacao.crawl;
+      try {
+        return ModalidadeNatacao.values.firstWhere((e) => e.name == v);
+      } catch (_) {
+        return ModalidadeNatacao.crawl;
+      }
+    }
+
+    return JogoNatacao(
+      atleta: (j['atleta'] ?? '').toString(),
+      modalidade: _parseModalidade(j['modalidade']?.toString()),
+      tempo: (j['tempo'] ?? '').toString(),
+      data: (j['data'] ?? '').toString(),
+    );
+  }
+
   Map<String, dynamic> toMap() {
     return {
       'atleta': atleta,
@@ -153,63 +187,82 @@ class JogoNatacao {
   }
 }
 
-// ---------------- SUBEVENTO ----------------
-
+// ---------------- CATEGORIA DE SUBEVENTO ----------------
+/// Esse tipo estava faltando e é o que resolve:
+/// "The name 'CategoriaSubevento' isn't a type..."
 class CategoriaSubevento {
   final String id;
   final String titulo;
-  final int ordem;
+
+  /// Opcional: se você tiver cor/ordem no backend, dá pra aproveitar.
+  final String? corHex;
+  final int? ordem;
 
   const CategoriaSubevento({
     required this.id,
     required this.titulo,
-    required this.ordem,
+    this.corHex,
+    this.ordem,
   });
 
+  factory CategoriaSubevento.fromAPI(Map<String, dynamic> j) {
+    int? _toIntOrNull(dynamic v) => int.tryParse((v ?? '').toString());
+
+    return CategoriaSubevento(
+      id: (j['_id'] ?? j['id'] ?? '').toString(),
+      titulo: (j['titulo'] ?? j['nome'] ?? j['label'] ?? '').toString(),
+      corHex: (j['corHex'] ?? j['cor'] ?? j['hex'] ?? '').toString().trim().isEmpty
+          ? null
+          : (j['corHex'] ?? j['cor'] ?? j['hex']).toString(),
+      ordem: _toIntOrNull(j['ordem']),
+    );
+  }
+
   Map<String, dynamic> toMap() => {
-        'id': id,
+        '_id': id,
         'titulo': titulo,
-        'ordem': ordem,
+        if (corHex != null) 'corHex': corHex,
+        if (ordem != null) 'ordem': ordem,
       };
-
-  factory CategoriaSubevento.fromAPI(Map<String, dynamic> json) {
-    return CategoriaSubevento(
-      id: (json['id'] ?? '').toString(),
-      titulo: (json['titulo'] ?? '').toString(),
-      ordem: (json['ordem'] is num) ? (json['ordem'] as num).toInt() : 0,
-    );
-  }
-
-  CategoriaSubevento copyWith({String? id, String? titulo, int? ordem}) {
-    return CategoriaSubevento(
-      id: id ?? this.id,
-      titulo: titulo ?? this.titulo,
-      ordem: ordem ?? this.ordem,
-    );
-  }
 }
+
+// ---------------- SUBEVENTO ----------------
 
 class SubEvento {
   final String id;
+
+  /// ID da categoria (se você usar categoriasSubeventos com ids)
   final String categoriaId;
+
+  /// Texto da categoria (ex.: "Música", "Final", etc.)
+  final String? categoria;
+
   final String nome;
   final String descricao;
   final String data;
+
+  /// No backend você pode mandar "horario"; em partes do app você usa "hora".
   final String hora;
+
   final String local;
 
-  /// Pode ser URL (quando tiver backend) ou path local (enquanto está local)
+  /// Pode ser URL (backend) ou path local (enquanto está local)
   final String imagem;
 
   final String? videoUrl;
   final String? fotosUrl;
 
-  /// Agora é texto livre (ex.: "2x1", "W.O.", "Final A", "3 sets a 0")
+  /// Texto livre (ex.: "2x1", "W.O.", etc.)
   final String? placar;
 
-  SubEvento({
+  /// IDs que costumam existir no backend (opcional no app)
+  final String? eventoPaiId;
+  final String? instituicaoId;
+
+  const SubEvento({
     required this.id,
     required this.categoriaId,
+    this.categoria,
     required this.nome,
     required this.descricao,
     required this.data,
@@ -219,6 +272,8 @@ class SubEvento {
     this.videoUrl,
     this.fotosUrl,
     this.placar,
+    this.eventoPaiId,
+    this.instituicaoId,
   });
 
   factory SubEvento.fromAPI(Map<String, dynamic> j) {
@@ -227,24 +282,38 @@ class SubEvento {
       return s.isEmpty ? null : s;
     }
 
+    String? _idFromDynamic(dynamic raw) {
+      if (raw == null) return null;
+      if (raw is Map<String, dynamic>) {
+        return (raw['_id'] ?? raw['id'])?.toString();
+      }
+      return raw.toString();
+    }
+
+    final categoriaId = (j['categoriaId'] ?? '').toString();
+
     return SubEvento(
-      id: (j['id'] ?? '').toString(),
-      categoriaId: (j['categoriaId'] ?? '').toString(),
+      id: (j['_id'] ?? j['id'] ?? '').toString(),
+      categoriaId: categoriaId,
+      categoria: _norm(j['categoria']?.toString()) ?? _norm(categoriaId),
       nome: (j['nome'] ?? '').toString(),
       descricao: (j['descricao'] ?? '').toString(),
       data: (j['data'] ?? '').toString(),
-      hora: (j['hora'] ?? '').toString(),
+      hora: (j['hora'] ?? j['horario'] ?? '').toString(),
       local: (j['local'] ?? '').toString(),
-      imagem: (j['imagem'] ?? '').toString(),
+      imagem: (j['imagem'] ?? j['fotoUrl'] ?? '').toString(),
       videoUrl: _norm(j['videoUrl']?.toString()),
       fotosUrl: _norm(j['fotosUrl']?.toString()),
       placar: _norm(j['placar']?.toString()),
+      eventoPaiId: _idFromDynamic(j['eventoPaiId']),
+      instituicaoId: _idFromDynamic(j['instituicaoId']),
     );
   }
 
   Map<String, dynamic> toMap() => {
-        'id': id,
+        '_id': id,
         'categoriaId': categoriaId,
+        'categoria': categoria,
         'nome': nome,
         'descricao': descricao,
         'data': data,
@@ -254,9 +323,10 @@ class SubEvento {
         'videoUrl': videoUrl,
         'fotosUrl': fotosUrl,
         'placar': placar,
+        'eventoPaiId': eventoPaiId,
+        'instituicaoId': instituicaoId,
       };
 }
-
 
 // ---------------- EVENTO ----------------
 
@@ -364,6 +434,15 @@ class Evento {
       instId = instRaw.toString();
     }
 
+    Uri? _parseUri(dynamic raw) {
+      final s = raw?.toString().trim();
+      if (s == null || s.isEmpty) return null;
+      return Uri.tryParse(s);
+    }
+
+    final rawJogo = json['jogo'];
+    final rawJogoNatacao = json['jogoNatacao'];
+
     return Evento(
       id: (json['_id'] ?? json['id'] ?? '').toString(),
       nome: (json['nome'] ?? '').toString(),
@@ -379,11 +458,17 @@ class Evento {
           ? _parseCategoriEspotiva(json['categoriaEsportiva']?.toString())
           : null,
       genero: json['genero'] != null ? _parseGenero(json['genero']?.toString()) : null,
+      jogo: rawJogo is Map<String, dynamic> ? Jogo.fromAPI(rawJogo) : null,
+      jogoNatacao: rawJogoNatacao is Map<String, dynamic> ? JogoNatacao.fromAPI(rawJogoNatacao) : null,
       tema: json['tema']?.toString(),
       categoriaCultural: json['categoriaCultural'] != null
           ? _parseCategoriaCultural(json['categoriaCultural']?.toString())
           : null,
       artistas: _parseArtistas(json['artistas']),
+      linkInscricao: _parseUri(json['linkInscricao']),
+      linkTransmissao: _parseUri(json['linkTransmissao']),
+      linkResultados: _parseUri(json['linkResultados']),
+      linkFotos: _parseUri(json['linkFotos']),
 
       // >>> subeventos
       categoriasSubeventos: (json['categoriasSubeventos'] is List)
@@ -458,12 +543,14 @@ class Evento {
   static List<String>? _parseArtistas(dynamic raw) {
     if (raw == null) return null;
     if (raw is List) {
-      return raw.map((e) => e.toString().trim()).where((e) => e.isNotEmpty).toList();
+      final list = raw.map((e) => e.toString().trim()).where((e) => e.isNotEmpty).toList();
+      return list.isEmpty ? null : list;
     }
     if (raw is String) {
       final s = raw.trim();
       if (s.isEmpty) return null;
-      return s.split(';').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+      final list = s.split(';').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+      return list.isEmpty ? null : list;
     }
     return null;
   }

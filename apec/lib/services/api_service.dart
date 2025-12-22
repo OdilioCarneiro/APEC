@@ -36,7 +36,6 @@ class ApiService {
         'Accept': 'application/json',
       };
 
-  // >>> CORREÇÃO: Never (essa função nunca retorna)
   static Never _throwHttp(http.Response response, String prefix) {
     throw Exception('$prefix: ${response.statusCode} - ${_bodyUtf8(response)}');
   }
@@ -291,130 +290,148 @@ class ApiService {
     _throwHttp(response, 'Erro ao atualizar evento');
   }
 
- static Future<void> deletarEvento(String id) async {
+  /// Atualiza SOMENTE as categorias/títulos (rows) de subeventos do evento.
+  /// Requer backend aceitando PATCH /api/eventos/:id
+  /// com body { categoriasSubeventos: ["Subeventos","Música",...] }
+ static Future<Map<String, dynamic>> atualizarCategoriasSubeventos({
+  required String eventoId,
+  required List<String> categoriasTitulos,
+}) async {
   final response = await http
-      .delete(
-        _uri('/eventos/$id'),
+      .put(
+        _uri('/eventos/$eventoId'),
         headers: _headersJson(),
+        body: json.encode({'categoriasSubeventos': categoriasTitulos}),
       )
       .timeout(_timeout);
 
-  if (response.statusCode == 200 || response.statusCode == 204) return;
-
-  _throwHttp(response, 'Erro ao deletar evento');
-}
-
-// ============================================================
-// SUBEVENTOS
-// ============================================================
-
-
-static Future<List<dynamic>> listarSubEventos({String? eventoPaiId}) async {
-  final uri = eventoPaiId == null || eventoPaiId.isEmpty
-      ? _uri('/subeventos')
-      : _uri('/subeventos?eventoPaiId=$eventoPaiId');
-
-  final response = await http.get(uri).timeout(_timeout);
-
-  if (response.statusCode == 200) {
-    return _decodeList(response);
-  }
-
-  _throwHttp(response, 'Erro ao listar subeventos');
+  if (response.statusCode == 200) return _decodeMap(response);
+  _throwHttp(response, 'Erro ao atualizar categoriasSubeventos');
 }
 
 
-static Future<Map<String, dynamic>> obterSubEvento(String id) async {
-  final response = await http.get(_uri('/subeventos/$id')).timeout(_timeout);
 
-  if (response.statusCode == 200) {
-    return _decodeMap(response);
-  }
-
-  _throwHttp(response, 'Erro ao obter subevento');
-}
-
-
-static Future<Map<String, dynamic>> criarSubEventoSmart({
-  required Map<String, dynamic> dados,
-  File? imagem,
-}) async {
-  final uri = _uri('/subeventos');
-
-
-  if (imagem == null) {
+  static Future<void> deletarEvento(String id) async {
     final response = await http
-        .post(
-          uri,
+        .delete(
+          _uri('/eventos/$id'),
           headers: _headersJson(),
-          body: json.encode(dados),
         )
         .timeout(_timeout);
+
+    if (response.statusCode == 200 || response.statusCode == 204) return;
+
+    _throwHttp(response, 'Erro ao deletar evento');
+  }
+
+  // ============================================================
+  // SUBEVENTOS
+  // ============================================================
+
+  static Future<List<dynamic>> listarSubEventos({String? eventoPaiId}) async {
+    final base = _uri('/subeventos');
+
+    // Melhor do que interpolar string: garante encoding da query.
+    final uri = (eventoPaiId == null || eventoPaiId.isEmpty)
+        ? base
+        : base.replace(queryParameters: {'eventoPaiId': eventoPaiId});
+
+    final response = await http.get(uri).timeout(_timeout);
+
+    if (response.statusCode == 200) {
+      return _decodeList(response);
+    }
+
+    _throwHttp(response, 'Erro ao listar subeventos');
+  }
+
+  static Future<Map<String, dynamic>> obterSubEvento(String id) async {
+    final response = await http.get(_uri('/subeventos/$id')).timeout(_timeout);
+
+    if (response.statusCode == 200) {
+      return _decodeMap(response);
+    }
+
+    _throwHttp(response, 'Erro ao obter subevento');
+  }
+
+  static Future<Map<String, dynamic>> criarSubEventoSmart({
+    required Map<String, dynamic> dados,
+    File? imagem,
+  }) async {
+    final uri = _uri('/subeventos');
+
+    if (imagem == null) {
+      final response = await http
+          .post(
+            uri,
+            headers: _headersJson(),
+            body: json.encode(dados),
+          )
+          .timeout(_timeout);
+
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        return _decodeMap(response);
+      }
+
+      _throwHttp(response, 'Erro ao criar subevento (JSON)');
+    }
+
+    final request = http.MultipartRequest('POST', uri);
+
+    // campos
+    dados.forEach((key, value) {
+      if (value == null) return;
+      if (key == 'imagem') return;
+      request.fields[key] = value.toString();
+    });
+
+    // arquivo
+    request.files.add(
+      await http.MultipartFile.fromPath(
+        'imagem',
+        imagem.path,
+        filename: imagem.path.split('/').last,
+      ),
+    );
+
+    final streamed = await request.send().timeout(_timeout);
+    final response = await http.Response.fromStream(streamed);
 
     if (response.statusCode == 201 || response.statusCode == 200) {
       return _decodeMap(response);
     }
 
-    _throwHttp(response, 'Erro ao criar subevento (JSON)');
+    _throwHttp(response, 'Erro ao criar subevento (Multipart)');
+  }
+
+  static Future<Map<String, dynamic>> atualizarSubEvento(
+    String id,
+    Map<String, dynamic> dados,
+  ) async {
+    final response = await http
+        .put(
+          _uri('/subeventos/$id'),
+          headers: _headersJson(),
+          body: json.encode(dados),
+        )
+        .timeout(_timeout);
+
+    if (response.statusCode == 200) {
+      return _decodeMap(response);
+    }
+
+    _throwHttp(response, 'Erro ao atualizar subevento');
+  }
+
+  static Future<void> deletarSubEvento(String id) async {
+    final response = await http.delete(_uri('/subeventos/$id')).timeout(_timeout);
+
+    if (response.statusCode == 200 || response.statusCode == 204) return;
+
+    _throwHttp(response, 'Erro ao deletar subevento');
   }
 
 
-  final request = http.MultipartRequest('POST', uri);
-
-  // campos
-  dados.forEach((key, value) {
-    if (value == null) return;
-    if (key == 'imagem') return; 
-    request.fields[key] = value.toString();
-  });
-
-  request.files.add(
-    await http.MultipartFile.fromPath(
-      'imagem',
-      imagem.path,
-      filename: imagem.path.split('/').last,
-    ),
-  );
-
-  final streamed = await request.send().timeout(_timeout);
-  final response = await http.Response.fromStream(streamed);
-
-  if (response.statusCode == 201 || response.statusCode == 200) {
-    return _decodeMap(response);
-  }
-
-  _throwHttp(response, 'Erro ao criar subevento (Multipart)');
+  
 }
-
-
-static Future<Map<String, dynamic>> atualizarSubEvento(
-  String id,
-  Map<String, dynamic> dados,
-) async {
-  final response = await http
-      .put(
-        _uri('/subeventos/$id'),
-        headers: _headersJson(),
-        body: json.encode(dados),
-      )
-      .timeout(_timeout);
-
-  if (response.statusCode == 200) {
-    return _decodeMap(response);
-  }
-
-  _throwHttp(response, 'Erro ao atualizar subevento');
-}
-
-
-static Future<void> deletarSubEvento(String id) async {
-  final response = await http.delete(_uri('/subeventos/$id')).timeout(_timeout);
-
-  if (response.statusCode == 200 || response.statusCode == 204) return;
-
-  _throwHttp(response, 'Erro ao deletar subevento');
-}
-
-
-}
-

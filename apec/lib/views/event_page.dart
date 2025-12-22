@@ -1,17 +1,121 @@
-import 'package:flutter/material.dart';
-import 'package:apec/pages/data/model.dart';
+import 'dart:async';
 
-class EventPage extends StatelessWidget {
+import 'package:flutter/material.dart';
+
+import 'package:apec/pages/data/model.dart';
+import 'package:apec/services/api_service.dart';
+
+// Card do subevento (abre sheet ao tocar, mas não tem botão de adicionar aqui)
+import 'package:apec/pages/components/card_subevento.dart';
+
+class EventPage extends StatefulWidget {
   final Evento evento;
   const EventPage({super.key, required this.evento});
 
   @override
-  Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
-    final screenHeight = size.height;
+  State<EventPage> createState() => _EventPageState();
+}
 
-    final Gradient fundoEvento =
-        (evento.categoria == Categoria.esportiva)
+class _EventPageState extends State<EventPage> {
+  late Future<_EventPageData> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = _carregarTudo();
+  }
+
+  Future<_EventPageData> _carregarTudo() async {
+    final eventoId = widget.evento.id;
+
+    // Se por algum motivo esse EventPage foi aberto sem id,
+    // renderiza só com o objeto recebido (sem subeventos/categorias do backend).
+    if (eventoId == null || eventoId.isEmpty) {
+      return _EventPageData(
+        evento: widget.evento,
+        subeventos: const [],
+      );
+    }
+
+    // Pega o Evento atualizado (pra trazer categoriasSubeventos já renomeadas)
+    // e pega os SubEventos do evento.
+    final results = await Future.wait([
+      ApiService.obterEvento(eventoId),
+      ApiService.listarSubEventos(eventoPaiId: eventoId),
+    ]);
+
+    final eventoJson = results[0] as Map<String, dynamic>;
+    final subeventosRaw = results[1] as List<dynamic>;
+
+    final eventoAtualizado = Evento.fromAPI(eventoJson);
+
+    final subs = subeventosRaw
+        .whereType<Map>()
+        .map((e) => SubEvento.fromAPI(Map<String, dynamic>.from(e)))
+        .toList();
+
+    return _EventPageData(evento: eventoAtualizado, subeventos: subs);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<_EventPageData>(
+      future: _future,
+      builder: (context, snap) {
+        // Loading
+        if (snap.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        // Erro
+        if (snap.hasError) {
+          return Scaffold(
+            body: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Erro ao carregar o evento.',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      snap.error.toString(),
+                      style: const TextStyle(color: Colors.red),
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: ElevatedButton(
+                        onPressed: () => setState(() => _future = _carregarTudo()),
+                        child: const Text('Tentar novamente'),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Voltar'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }
+
+        final data = snap.data!;
+        final evento = data.evento;
+        final subs = data.subeventos;
+
+        final size = MediaQuery.of(context).size;
+        final screenHeight = size.height;
+
+        final Gradient fundoEvento = (evento.categoria == Categoria.esportiva)
             ? LinearGradient(
                 begin: Alignment.center,
                 end: Alignment.bottomCenter,
@@ -29,60 +133,157 @@ class EventPage extends StatelessWidget {
                 ],
               );
 
-    return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: fundoEvento,
-        ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              // Banner ocupa toda a largura, sem padding lateral
-              EventBanner(imagem: evento.imagem),
+        // 1) Monta a lista de categorias (rows) a partir do evento (backend)
+        // 2) Garante que categorias vindas de subevento também apareçam
+        final Map<String, List<SubEvento>> grupos = {};
 
-              // Apenas espaçamento embaixo do banner
-              const SizedBox(height: 24),
+        // Sempre existe a base
+        grupos['Subeventos'] = [];
 
-              // Conteúdo rolável com padding lateral
-              Expanded(
-                child: ListView(
-                  padding: const EdgeInsets.only(
-                    left: 10,
-                    right: 10,
-                    bottom: 24,
-                  ),
-                  children: [
-                    // Título
-                    EventTitle(title: evento.nome),
+        // Categorias cadastradas no evento (aparecem mesmo vazias)
+        for (final cat in evento.categoriasSubeventos) {
+          final titulo = cat.titulo.trim();
+          if (titulo.isNotEmpty) {
+            grupos.putIfAbsent(titulo, () => []);
+          }
+        }
 
-                    const SizedBox(height: 8),
+        // Agora coloca os subeventos dentro de suas categorias
+        for (final s in subs) {
+          final titulo = (s.categoria ?? '').trim().isEmpty ? 'Subeventos' : s.categoria!.trim();
+          grupos.putIfAbsent(titulo, () => []);
+          grupos[titulo]!.add(s);
+        }
 
-                    // Data / horário / local
-                    EventDetailsRow(
-                      data: evento.data,
-                      local: evento.local,
+        // Ordenação simples: Subeventos primeiro, depois alfabético.
+        final categoriasOrdenadas = grupos.keys.toList()
+          ..sort((a, b) {
+            if (a.toLowerCase() == 'subeventos') return -1;
+            if (b.toLowerCase() == 'subeventos') return 1;
+            return a.toLowerCase().compareTo(b.toLowerCase());
+          });
+
+        return Scaffold(
+          body: Container(
+            decoration: BoxDecoration(gradient: fundoEvento),
+            child: SafeArea(
+              child: Column(
+                children: [
+                  EventBanner(imagem: evento.imagem),
+
+                  const SizedBox(height: 24),
+
+                  Expanded(
+                    child: ListView(
+                      padding: const EdgeInsets.only(left: 10, right: 10, bottom: 24),
+                      children: [
+                        EventTitle(title: evento.nome),
+                        const SizedBox(height: 8),
+
+                        EventDetailsRow(
+                          data: evento.data,
+                          local: evento.local,
+                        ),
+                        const SizedBox(height: 12),
+
+                        EventDescription(texto: evento.descricao),
+                        const SizedBox(height: 16),
+
+                        // ROWS DE SUBEVENTOS (somente leitura)
+                        ...categoriasOrdenadas.map((cat) {
+                          final lista = grupos[cat] ?? const <SubEvento>[];
+
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 14),
+                            child: _LinhaSubeventosReadOnly(
+                              titulo: cat,
+                              subeventos: lista,
+                            ),
+                          );
+                        }),
+
+                        SizedBox(height: screenHeight * 0.02),
+                      ],
                     ),
-
-                    const SizedBox(height: 12),
-
-                    // Descrição
-                    EventDescription(texto: evento.descricao),
-                    const SizedBox(height: 16),
-
-                    SizedBox(height: screenHeight * 0.02),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _EventPageData {
+  final Evento evento;
+  final List<SubEvento> subeventos;
+
+  const _EventPageData({
+    required this.evento,
+    required this.subeventos,
+  });
+}
+
+// ---------- ROW (read-only) ----------
+class _LinhaSubeventosReadOnly extends StatelessWidget {
+  final String titulo;
+  final List<SubEvento> subeventos;
+
+  const _LinhaSubeventosReadOnly({
+    required this.titulo,
+    required this.subeventos,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          titulo,
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF263238),
           ),
         ),
-      ),
+        const SizedBox(height: 10),
+
+        if (subeventos.isEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0x33263238), width: 1),
+            ),
+            child: Text(
+              'Sem subeventos nesta categoria.',
+              style: TextStyle(color: Colors.grey.shade700, fontSize: 12),
+            ),
+          )
+        else
+          SizedBox(
+            height: 140,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: subeventos.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 12),
+              itemBuilder: (context, index) {
+                final sub = subeventos[index];
+                return SubEventoCardComponent(subevento: sub);
+              },
+            ),
+          ),
+      ],
     );
   }
 }
 
 // ---------- Banner ----------
-
 class EventBanner extends StatelessWidget {
   final String imagem;
   const EventBanner({super.key, required this.imagem});
@@ -99,28 +300,21 @@ class EventBanner extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          // Imagem de fundo cobrindo toda a largura
-          isNetwork
-              ? Image.network(imagem, fit: BoxFit.cover)
-              : Image.asset(imagem, fit: BoxFit.cover),
+          isNetwork ? Image.network(imagem, fit: BoxFit.cover) : Image.asset(imagem, fit: BoxFit.cover),
 
-          // Gradiente branco de baixo para o centro
           Container(
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.bottomCenter,
                 end: Alignment.center,
                 colors: [
-                  
                   Colors.white,
-                  const Color.fromARGB(36, 255, 255, 255),
-                  
+                  Color.fromARGB(36, 255, 255, 255),
                 ],
               ),
             ),
           ),
 
-          // Botão de voltar
           Positioned(
             top: 12,
             left: 12,
@@ -143,7 +337,6 @@ class EventBanner extends StatelessWidget {
 }
 
 // ---------- Título ----------
-
 class EventTitle extends StatelessWidget {
   final String title;
   const EventTitle({super.key, required this.title});
@@ -162,7 +355,6 @@ class EventTitle extends StatelessWidget {
 }
 
 // ---------- Descrição ----------
-
 class EventDescription extends StatelessWidget {
   final String texto;
   const EventDescription({super.key, required this.texto});
@@ -170,13 +362,10 @@ class EventDescription extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final screenHeight = MediaQuery.of(context).size.height;
-    final double maxHeight =
-        (screenHeight * 0.25).clamp(120.0, 220.0);
+    final double maxHeight = (screenHeight * 0.25).clamp(120.0, 220.0);
 
     return Container(
-      constraints: BoxConstraints(
-        maxHeight: maxHeight,
-      ),
+      constraints: BoxConstraints(maxHeight: maxHeight),
       margin: const EdgeInsets.symmetric(vertical: 5),
       child: Scrollbar(
         thumbVisibility: true,
@@ -195,11 +384,11 @@ class EventDescription extends StatelessWidget {
   }
 }
 
-// ---------- Data / horário / local ----------
-
+// ---------- Data / local ----------
 class EventDetailsRow extends StatelessWidget {
   final String data;
   final String local;
+
   const EventDetailsRow({
     super.key,
     required this.data,
@@ -211,10 +400,7 @@ class EventDetailsRow extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20.0),
-        border: Border.all(
-          color: const Color(0x33263238),
-          width: 1,
-        ),
+        border: Border.all(color: const Color(0x33263238), width: 1),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
@@ -242,16 +428,8 @@ class EventDetailsRow extends StatelessWidget {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Expanded(child: detailItem(Icons.calendar_today, data)),
-            ],
-          ),
-          Row(
-            children: [
-              Expanded(child: detailItem(Icons.place, local)),
-            ],
-          ),
+          Row(children: [Expanded(child: detailItem(Icons.calendar_today, data))]),
+          Row(children: [Expanded(child: detailItem(Icons.place, local))]),
         ],
       );
     }
@@ -264,5 +442,3 @@ class EventDetailsRow extends StatelessWidget {
     );
   }
 }
-
-

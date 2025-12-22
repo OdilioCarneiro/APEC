@@ -18,6 +18,12 @@ const EventoSchema = new mongoose.Schema(
       required: true,
     },
 
+    categoriasSubeventos: {
+      type: [String],
+      default: [],
+    },
+
+
     // campos opcionais
     categoriaEsportiva: { type: String, default: '' },
     genero: { type: String, default: '' },

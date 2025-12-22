@@ -170,76 +170,69 @@ class _CadastroSubEventoScreenState extends State<CadastroSubEventoScreen> {
   }
 
   Future<void> _salvarSubEvento() async {
-    if (_loading) return;
+  if (_loading) return;
 
-    if (_nomeController.text.trim().isEmpty || _localController.text.trim().isEmpty) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Por favor, preencha nome e local!')),
-      );
-      return;
-    }
-
-    final instituicaoId = await ApiService.lerInstituicaoId();
-    if (instituicaoId == null || instituicaoId.isEmpty) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Você precisa estar logado como instituição para criar subevento.'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-
-    try {
-      setState(() => _loading = true);
-
-      final dados = <String, dynamic>{
-        'nome': _nomeController.text.trim(),
-        'categoria': (_categoriaSelecionadaTexto ?? '').trim(),
-        'descricao': _descricaoController.text.trim(),
-        'data': _dataSelecionada.toIso8601String().substring(0, 10),
-        'horario': _formatHora(_horaSelecionada),
-        'local': _localController.text.trim(),
-        'placar': _placarController.text.trim(),
-        'fotosUrl': _fotosUrlController.text.trim(),
-        'videoUrl': _videoUrlController.text.trim(),
-        'instituicaoId': instituicaoId,
-
-        
-        'eventoPaiId': widget.eventoPai.id, 
-      };
-
-      // Troque para seu método real (o nome exato do ApiService).
-      await ApiService.criarSubEventoSmart(
-        dados: dados,
-        imagem: _selectedImage,
-      );
-
-
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('SubEvento salvo com sucesso!'),
-          backgroundColor: Colors.green,
-        ),
-      );
-
-      context.pop(true);
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Erro ao salvar: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
+  if (_nomeController.text.trim().isEmpty || _localController.text.trim().isEmpty) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Por favor, preencha nome e local!')),
+    );
+    return;
   }
+
+  final instituicaoId = await ApiService.lerInstituicaoId();
+  if (instituicaoId == null || instituicaoId.isEmpty) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Você precisa estar logado como instituição para criar subevento.'),
+        backgroundColor: Colors.red,
+      ),
+    );
+    return;
+  }
+
+  try {
+    setState(() => _loading = true);
+
+    final dados = <String, dynamic>{
+      'nome': _nomeController.text.trim(),
+      'categoria': (_categoriaSelecionadaTexto ?? '').trim(),
+      'descricao': _descricaoController.text.trim(),
+      'data': _dataSelecionada.toIso8601String().substring(0, 10),
+      'horario': _formatHora(_horaSelecionada),
+      'local': _localController.text.trim(),
+      'placar': _placarController.text.trim(),
+      'fotosUrl': _fotosUrlController.text.trim(),
+      'videoUrl': _videoUrlController.text.trim(),
+      'instituicaoId': instituicaoId,
+      'eventoPaiId': widget.eventoPai.id,
+    };
+
+    // IMPORTANTE: retorna Map<String, dynamic>
+    final criado = await ApiService.criarSubEventoSmart(
+      dados: dados,
+      imagem: _selectedImage,
+    );
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('SubEvento salvo com sucesso!'), backgroundColor: Colors.green),
+    );
+
+    // <<< em vez de true, retorne o objeto criado:
+    context.pop(criado);
+  } catch (e) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Erro ao salvar: $e'), backgroundColor: Colors.red),
+    );
+  } finally {
+    if (mounted) setState(() => _loading = false);
+  }
+}
+
 
   @override
   Widget build(BuildContext context) {
