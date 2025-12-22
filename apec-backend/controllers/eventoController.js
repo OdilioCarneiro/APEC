@@ -105,35 +105,35 @@ exports.listarEventosPorInstituicao = async (req, res) => {
 };
 
 // RENOMEAR categoria (atualiza evento + subeventos)
+// eventoController.js
+// RENOMEAR categoria (atualiza evento + subeventos)
 exports.renomearCategoriaSubeventos = async (req, res) => {
   try {
-    const { antiga, nova } = req.body;
-    if (!antiga || !nova) return res.status(400).json({ erro: 'antiga e nova são obrigatórios' });
+    const { id } = req.params;          // id do evento
+    const { antiga, nova } = req.body;  // títulos antigo e novo
 
-    const antigaTrim = String(antiga).trim();
-    const novaTrim = String(nova).trim();
-    if (!antigaTrim || !novaTrim) return res.status(400).json({ erro: 'antiga/nova inválidas' });
+    const evento = await Evento.findById(id);
+    if (!evento) {
+      return res.status(404).json({ message: 'Evento não encontrado' });
+    }
 
-    // 1) Atualiza categoriasSubeventos no evento
-    const evento = await Evento.findById(req.params.id);
-    if (!evento) return res.status(404).json({ erro: 'Evento não encontrado' });
-
-    const cats = Array.isArray(evento.categoriasSubeventos) ? evento.categoriasSubeventos : [];
-    evento.categoriasSubeventos = cats.map((c) => (String(c).trim() === antigaTrim ? novaTrim : c));
+    // 1) Renomeia dentro do array categoriasSubeventos (sem criar nova row)
+    evento.categoriasSubeventos = evento.categoriasSubeventos.map((cat) =>
+      cat === antiga ? nova : cat
+    );
     await evento.save();
 
-    // 2) Atualiza todos os subeventos daquela categoria
+    // 2) Atualiza todos os subeventos que apontavam para essa categoria
     await SubEvento.updateMany(
-      { eventoPaiId: req.params.id, categoria: antigaTrim },
-      { $set: { categoria: novaTrim } }
+      { eventoPaiId: id, categoriaId: antiga },
+      { $set: { categoriaId: nova } }
     );
 
-    // 3) Retorna evento atualizado
-    const eventoPop = await Evento.findById(req.params.id)
-      .populate('instituicaoId', 'nome fotoUrl');
-
-    return res.json(eventoPop);
-  } catch (error) {
-    return res.status(400).json({ erro: 'Erro ao renomear categoria', detalhes: error.message });
+    return res.json(evento);
+  } catch (err) {
+    console.error('Erro ao renomear categoria:', err);
+    res.status(500).json({ message: 'Erro ao renomear categoria' });
   }
 };
+
+
