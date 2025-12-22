@@ -1,5 +1,6 @@
 // apec-backend/controllers/subeventosController.js
-const SubEvento = require('../models/SubEvento');
+const SubEvento = require('../models/Subevento');
+
 
 
 exports.listarSubEventos = async (req, res) => {

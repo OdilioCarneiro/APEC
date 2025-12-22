@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const Evento = require('../models/Evento');
-const SubEvento = require('../models/SubEvento'); // ou '../models/Subevento' conforme o nome real do arquivo
+const SubEvento = require('../models/Subevento');
+ // ou '../models/Subevento' conforme o nome real do arquivo
 
 
 // Listar todos os eventos (já trazendo instituição)
