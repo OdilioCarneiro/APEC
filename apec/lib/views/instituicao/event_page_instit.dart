@@ -72,15 +72,16 @@ class _EventosPageInstitState extends State<EventosPageInstit> {
       setState(() {
         _evento = eventoAtualizado;
 
+        // recria linhas
         for (final l in _linhas) {
           l.controller.dispose();
         }
         _linhas.clear();
 
-        // base
+        // base fixa
         _linhas.add(_SubeventoLinha(titulo: 'Subeventos'));
 
-        // categorias do evento (mesmo vazias)
+        // 1) sempre monta as linhas pela fonte da verdade: evento.categoriasSubeventos (mesmo vazias)
         final rawCats = _evento.categoriasSubeventos;
         for (final item in rawCats) {
           final t = item.toString().trim();
@@ -91,14 +92,16 @@ class _EventosPageInstitState extends State<EventosPageInstit> {
           }
         }
 
-        // agrupa subeventos nas linhas (cria linha se vier categoria não listada)
+        // 2) encaixa subeventos nas linhas existentes.
+        //    IMPORTANTE: não cria linha nova se o subevento vier com categoria não listada,
+        //    pra não “ressuscitar” categoria antiga e parecer duplicação.
         for (final s in subs) {
           final cat = (s.categoria ?? '').trim().isEmpty ? 'Subeventos' : s.categoria!.trim();
           final idx = _indexLinhaPorTitulo(cat);
 
           if (idx == -1) {
-            _linhas.add(_SubeventoLinha(titulo: cat));
-            _linhas.last.subeventos.add(s);
+            // categoria desatualizada/fora da lista -> cai na base
+            _linhas[0].subeventos.add(s);
           } else {
             _linhas[idx].subeventos.add(s);
           }
@@ -122,7 +125,7 @@ class _EventosPageInstitState extends State<EventosPageInstit> {
   }
 
   // ===========================
-  // CATEGORIAS -> SALVAR NO EVENTO
+  // CATEGORIAS -> SALVAR NO EVENTO (add/remover)
   // ===========================
 
   void _queueSalvarCategorias() {
@@ -192,7 +195,8 @@ class _EventosPageInstitState extends State<EventosPageInstit> {
       _changed = true;
     });
 
-    _queueSalvarCategorias();
+    // cria a row no Evento (persistência) sem renomear subeventos
+    unawaited(_salvarCategoriasAgora());
   }
 
   void _removerLinha(int index) {
@@ -209,20 +213,24 @@ class _EventosPageInstitState extends State<EventosPageInstit> {
   }
 
   // ===========================
-  // RENOMEAR CATEGORIA (EVENTO + SUBEVENTOS) EM 1 CHAMADA
+  // RENOMEAR (evento + subeventos)
   // ===========================
 
   Future<void> _renomearCategoria(_SubeventoLinha linha, String novoTitulo) async {
     final novo = novoTitulo.trim();
     final antigo = linha.tituloSalvo.trim();
 
-    if (novo.isEmpty) return;
+    if (novo.isEmpty) {
+      // se apagar, volta pro salvo para não quebrar a lista
+      linha.controller.text = antigo;
+      return;
+    }
     if (antigo.isNotEmpty && novo.toLowerCase() == antigo.toLowerCase()) return;
 
     final eventoId = _evento.id;
     if (eventoId == null || eventoId.isEmpty) return;
 
-    // flush debounce pra não “brigar” com o rename
+    // não deixar o debounce de salvar lista “brigar” com rename
     _debounceSalvarCategorias?.cancel();
 
     try {
@@ -234,7 +242,7 @@ class _EventosPageInstitState extends State<EventosPageInstit> {
         nova: novo,
       );
 
-      // atualiza o título salvo localmente
+      // atualiza o salvo local
       linha.tituloSalvo = novo;
 
       if (!mounted) return;
@@ -243,9 +251,12 @@ class _EventosPageInstitState extends State<EventosPageInstit> {
         _changed = true;
       });
 
-      // recarrega pra refletir os subeventos já reclassificados
+      // recarrega pra refletir subeventos já migrados
       await _carregarSubeventosDoBackend();
     } catch (e) {
+      // rollback visual
+      linha.controller.text = antigo;
+
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -274,7 +285,7 @@ class _EventosPageInstitState extends State<EventosPageInstit> {
       '/subevento',
       extra: {
         'eventoPai': _evento,
-        'categoria': _linhas[indexLinha].controller.text,
+        'categoria': _linhas[indexLinha].controller.text.trim(),
         'categorias': categorias,
       },
     );
@@ -398,13 +409,11 @@ class _EventosPageInstitState extends State<EventosPageInstit> {
                             const SizedBox(height: 12),
                             EventDescription(texto: evento.descricao),
                             const SizedBox(height: 16),
-
                             if (_loadingSubeventos)
                               const Padding(
                                 padding: EdgeInsets.symmetric(vertical: 12),
                                 child: Center(child: CircularProgressIndicator()),
                               ),
-
                             SizedBox(
                               width: double.infinity,
                               height: 46,
@@ -414,7 +423,6 @@ class _EventosPageInstitState extends State<EventosPageInstit> {
                               ),
                             ),
                             const SizedBox(height: 12),
-
                             ...List.generate(_linhas.length, (i) {
                               return Padding(
                                 padding: const EdgeInsets.only(bottom: 14),
@@ -423,15 +431,13 @@ class _EventosPageInstitState extends State<EventosPageInstit> {
                                   canDelete: _linhas.length > 1 && i != 0,
                                   onTapAdd: () => _adicionarSubeventoNaLinha(i),
                                   onDelete: () => _removerLinha(i),
-                                  onTituloChanged: (_) {
-                                    _changed = true;
-                                    _queueSalvarCategorias();
+                                  onRenameCommit: (txt) => _renomearCategoria(_linhas[i], txt),
+                                  onChangedLocalOnly: (_) {
+                                    _changed = true; // não salva nem renomeia enquanto digita
                                   },
-                                  onTituloSubmitted: (txt) => _renomearCategoria(_linhas[i], txt),
                                 ),
                               );
                             }),
-
                             const SizedBox(height: 12),
                             SizedBox(
                               width: double.infinity,
@@ -454,7 +460,6 @@ class _EventosPageInstitState extends State<EventosPageInstit> {
                                 ),
                               ),
                             ),
-
                             SizedBox(height: screenHeight * 0.02),
                           ],
                         ),
@@ -464,7 +469,6 @@ class _EventosPageInstitState extends State<EventosPageInstit> {
                 ),
               ),
             ),
-
             if (_savingCategorias)
               const Positioned.fill(
                 child: ColoredBox(
@@ -484,16 +488,20 @@ class _LinhaSubeventos extends StatelessWidget {
   final bool canDelete;
   final VoidCallback onTapAdd;
   final VoidCallback onDelete;
-  final ValueChanged<String> onTituloChanged;
-  final ValueChanged<String> onTituloSubmitted;
+
+  /// Só marca estado local (não salva / não renomeia)
+  final ValueChanged<String> onChangedLocalOnly;
+
+  /// Commit do rename (submit ou perder foco)
+  final ValueChanged<String> onRenameCommit;
 
   const _LinhaSubeventos({
     required this.linha,
     required this.canDelete,
     required this.onTapAdd,
     required this.onDelete,
-    required this.onTituloChanged,
-    required this.onTituloSubmitted,
+    required this.onChangedLocalOnly,
+    required this.onRenameCommit,
   });
 
   @override
@@ -505,32 +513,39 @@ class _LinhaSubeventos extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             Expanded(
-              child: TextField(
-                controller: linha.controller,
-                onChanged: onTituloChanged,
-                onSubmitted: onTituloSubmitted,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF263238),
-                ),
-                decoration: const InputDecoration(
-                  isDense: true,
-                  contentPadding: EdgeInsets.only(bottom: 4),
-                  hintText: 'Nome da categoria',
-                  hintStyle: TextStyle(
+              child: Focus(
+                onFocusChange: (hasFocus) {
+                  if (!hasFocus) {
+                    onRenameCommit(linha.controller.text);
+                  }
+                },
+                child: TextField(
+                  controller: linha.controller,
+                  onChanged: onChangedLocalOnly,
+                  onSubmitted: onRenameCommit,
+                  style: const TextStyle(
                     fontSize: 18,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.grey,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF263238),
                   ),
-                  border: UnderlineInputBorder(
-                    borderSide: BorderSide(color: Color(0x33263238), width: 1),
-                  ),
-                  enabledBorder: UnderlineInputBorder(
-                    borderSide: BorderSide(color: Color(0x33263238), width: 1),
-                  ),
-                  focusedBorder: UnderlineInputBorder(
-                    borderSide: BorderSide(color: Color(0xFF263238), width: 1.4),
+                  decoration: const InputDecoration(
+                    isDense: true,
+                    contentPadding: EdgeInsets.only(bottom: 4),
+                    hintText: 'Nome da categoria',
+                    hintStyle: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.grey,
+                    ),
+                    border: UnderlineInputBorder(
+                      borderSide: BorderSide(color: Color(0x33263238), width: 1),
+                    ),
+                    enabledBorder: UnderlineInputBorder(
+                      borderSide: BorderSide(color: Color(0x33263238), width: 1),
+                    ),
+                    focusedBorder: UnderlineInputBorder(
+                      borderSide: BorderSide(color: Color(0xFF263238), width: 1.4),
+                    ),
                   ),
                 ),
               ),
