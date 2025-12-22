@@ -188,8 +188,7 @@ class JogoNatacao {
 }
 
 // ---------------- CATEGORIA DE SUBEVENTO ----------------
-/// Esse tipo estava faltando e é o que resolve:
-/// "The name 'CategoriaSubevento' isn't a type..."
+
 class CategoriaSubevento {
   final String id;
   final String titulo;
@@ -362,7 +361,7 @@ class Evento {
   Uri? linkFotos;
 
   // >>> subeventos
-  List<CategoriaSubevento> categoriasSubeventos;
+  List<String> categoriasSubeventos;
   List<SubEvento> subeventos;
 
   Evento({
@@ -387,7 +386,7 @@ class Evento {
     this.linkTransmissao,
     this.linkResultados,
     this.linkFotos,
-    List<CategoriaSubevento>? categoriasSubeventos,
+    List<String>? categoriasSubeventos,
     List<SubEvento>? subeventos,
   })  : categoriasSubeventos = categoriasSubeventos ?? [],
         subeventos = subeventos ?? [];
@@ -416,7 +415,7 @@ class Evento {
       'linkFotos': linkFotos?.toString(),
 
       // >>> subeventos
-      'categoriasSubeventos': categoriasSubeventos.map((e) => e.toMap()).toList(),
+      'categoriasSubeventos': categoriasSubeventos,
       'subeventos': subeventos.map((e) => e.toMap()).toList(),
     };
   }
@@ -473,10 +472,10 @@ class Evento {
       // >>> subeventos
       categoriasSubeventos: (json['categoriasSubeventos'] is List)
           ? (json['categoriasSubeventos'] as List)
-              .whereType<Map<String, dynamic>>()
-              .map(CategoriaSubevento.fromAPI)
+              .map((e) => e.toString())
+              .where((e) => e.trim().isNotEmpty)
               .toList()
-          : <CategoriaSubevento>[],
+          : <String>[],
       subeventos: (json['subeventos'] is List)
           ? (json['subeventos'] as List)
               .whereType<Map<String, dynamic>>()
@@ -508,7 +507,7 @@ class Evento {
     Uri? linkTransmissao,
     Uri? linkResultados,
     Uri? linkFotos,
-    List<CategoriaSubevento>? categoriasSubeventos,
+    List<String>? categoriasSubeventos,
     List<SubEvento>? subeventos,
   }) {
     return Evento(
