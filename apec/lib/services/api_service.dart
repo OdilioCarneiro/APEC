@@ -432,6 +432,22 @@ class ApiService {
     _throwHttp(response, 'Erro ao deletar subevento');
   }
 
+  static Future<Map<String, dynamic>> renomearCategoriaSubeventos({
+    required String eventoId,
+    required String antiga,
+    required String nova,
+  }) async {
+    final response = await http
+        .put(
+          _uri('/eventos/$eventoId/renomear-categoria'),
+          headers: _headersJson(),
+          body: json.encode({'antiga': antiga, 'nova': nova}),
+        )
+        .timeout(_timeout);
+
+    if (response.statusCode == 200) return _decodeMap(response);
+    _throwHttp(response, 'Erro ao renomear categoria');
+  }
 
   
 }

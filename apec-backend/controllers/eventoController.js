@@ -102,3 +102,35 @@ exports.listarEventosPorInstituicao = async (req, res) => {
     return res.status(500).json({ erro: 'Erro ao listar eventos da instituição', detalhes: error.message });
   }
 };
+
+// apec-backend/controllers/eventosController.js
+const SubEvento = require('../models/Subevento');
+const Evento = require('../models/Evento');
+
+exports.renomearCategoriaSubeventos = async (req, res) => {
+  try {
+    const { antiga, nova } = req.body;
+    if (!antiga || !nova) return res.status(400).json({ erro: 'antiga e nova são obrigatórios' });
+
+    // 1) Atualiza evento.categoriasSubeventos
+    const evento = await Evento.findById(req.params.id);
+    if (!evento) return res.status(404).json({ erro: 'Evento não encontrado' });
+
+    const cats = Array.isArray(evento.categoriasSubeventos) ? evento.categoriasSubeventos : [];
+    evento.categoriasSubeventos = cats.map((c) => (String(c).trim() === String(antiga).trim() ? String(nova).trim() : c));
+    await evento.save();
+
+    // 2) Atualiza todos subeventos daquela categoria
+    await SubEvento.updateMany(
+      { eventoPaiId: req.params.id, categoria: String(antiga).trim() },
+      { $set: { categoria: String(nova).trim() } }
+    );
+
+    // 3) Retorna evento atualizado
+    const eventoPop = await Evento.findById(req.params.id).populate('instituicaoId', 'nome fotoUrl');
+    return res.json(eventoPop);
+  } catch (error) {
+    return res.status(400).json({ erro: 'Erro ao renomear categoria', detalhes: error.message });
+  }
+};
+

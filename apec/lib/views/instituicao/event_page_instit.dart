@@ -24,7 +24,6 @@ class _EventosPageInstitState extends State<EventosPageInstit> {
   bool _deleting = false;
   bool _loadingSubeventos = false;
 
-  // salvar títulos/rows
   Timer? _debounceSalvarCategorias;
   bool _savingCategorias = false;
 
@@ -36,8 +35,6 @@ class _EventosPageInstitState extends State<EventosPageInstit> {
   void initState() {
     super.initState();
     _evento = widget.evento;
-
-    // Carrega subeventos + categorias ao entrar
     scheduleMicrotask(_carregarSubeventosDoBackend);
   }
 
@@ -61,15 +58,12 @@ class _EventosPageInstitState extends State<EventosPageInstit> {
     try {
       if (mounted) setState(() => _loadingSubeventos = true);
 
-      // 1) pega o evento atualizado (categoriasSubeventos)
       final eventoJson = await ApiService.obterEvento(eventoId);
       final eventoAtualizado = Evento.fromAPI(eventoJson);
 
-      // 2) pega os subeventos
       final list = await ApiService.listarSubEventos(eventoPaiId: eventoId);
-
       final subs = list
-          .whereType<Map>() // segurança
+          .whereType<Map>()
           .map((e) => SubEvento.fromAPI(Map<String, dynamic>.from(e)))
           .toList();
 
@@ -78,7 +72,6 @@ class _EventosPageInstitState extends State<EventosPageInstit> {
       setState(() {
         _evento = eventoAtualizado;
 
-        // limpa tudo
         for (final l in _linhas) {
           l.controller.dispose();
         }
@@ -89,15 +82,16 @@ class _EventosPageInstitState extends State<EventosPageInstit> {
 
         // categorias do evento (mesmo vazias)
         final rawCats = _evento.categoriasSubeventos;
-          for (final item in rawCats) {
-            final t = item.toString().trim();
-            if (t.isNotEmpty && t.toLowerCase() != 'subeventos') {
+        for (final item in rawCats) {
+          final t = item.toString().trim();
+          if (t.isNotEmpty && t.toLowerCase() != 'subeventos') {
+            if (_indexLinhaPorTitulo(t) == -1) {
               _linhas.add(_SubeventoLinha(titulo: t));
             }
           }
+        }
 
-
-        // agrupa subeventos nas linhas
+        // agrupa subeventos nas linhas (cria linha se vier categoria não listada)
         for (final s in subs) {
           final cat = (s.categoria ?? '').trim().isEmpty ? 'Subeventos' : s.categoria!.trim();
           final idx = _indexLinhaPorTitulo(cat);
@@ -114,8 +108,6 @@ class _EventosPageInstitState extends State<EventosPageInstit> {
           _linhas.add(_SubeventoLinha(titulo: 'Subeventos'));
         }
       });
-    } catch (_) {
-      // opcional: snackbar
     } finally {
       if (mounted) setState(() => _loadingSubeventos = false);
     }
@@ -130,13 +122,8 @@ class _EventosPageInstitState extends State<EventosPageInstit> {
   }
 
   // ===========================
-  // CATEGORIAS (linhas) -> SALVAR
+  // CATEGORIAS -> SALVAR NO EVENTO
   // ===========================
-
-  void _markChangedAndQueueSave() {
-    _changed = true;
-    _queueSalvarCategorias();
-  }
 
   void _queueSalvarCategorias() {
     _debounceSalvarCategorias?.cancel();
@@ -151,11 +138,9 @@ class _EventosPageInstitState extends State<EventosPageInstit> {
         .where((t) => t.isNotEmpty)
         .toList();
 
-    // garante base
     titulos.removeWhere((t) => t.toLowerCase() == 'subeventos');
     titulos.insert(0, 'Subeventos');
 
-    // remove duplicados case-insensitive mantendo ordem
     final seen = <String>{};
     final unique = <String>[];
     for (final t in titulos) {
@@ -201,6 +186,15 @@ class _EventosPageInstitState extends State<EventosPageInstit> {
     }
   }
 
+  void _adicionarLinha() {
+    setState(() {
+      _linhas.add(_SubeventoLinha(titulo: 'Nova categoria'));
+      _changed = true;
+    });
+
+    _queueSalvarCategorias();
+  }
+
   void _removerLinha(int index) {
     if (_linhas.length <= 1) return;
     if (index == 0) return;
@@ -214,51 +208,55 @@ class _EventosPageInstitState extends State<EventosPageInstit> {
     _queueSalvarCategorias();
   }
 
-  void _adicionarLinha() {
-    setState(() {
-      _linhas.add(_SubeventoLinha(titulo: 'Nova categoria'));
-      _changed = true;
-    });
-    _queueSalvarCategorias();
-  }
-
   // ===========================
-  // RENOMEAR CATEGORIA (subeventos)
+  // RENOMEAR CATEGORIA (EVENTO + SUBEVENTOS) EM 1 CHAMADA
   // ===========================
 
- Future<void> _renomearCategoria(_SubeventoLinha linha, String novoTitulo) async {
-  final novo = novoTitulo.trim();
-  final antigo = linha.tituloSalvo.trim();
+  Future<void> _renomearCategoria(_SubeventoLinha linha, String novoTitulo) async {
+    final novo = novoTitulo.trim();
+    final antigo = linha.tituloSalvo.trim();
 
-  if (novo.isEmpty) return;
-  if (antigo.isNotEmpty && novo.toLowerCase() == antigo.toLowerCase()) return;
-  
-  try {
-    for (final s in linha.subeventos) {
-      final id = s.id; // se for String não nula, não precisa checar null
-      if (id.isEmpty) continue; // ou nem precisa checar vazio se você confia no backend
+    if (novo.isEmpty) return;
+    if (antigo.isNotEmpty && novo.toLowerCase() == antigo.toLowerCase()) return;
 
-      await ApiService.atualizarSubEvento(id, {'categoria': novo});
+    final eventoId = _evento.id;
+    if (eventoId == null || eventoId.isEmpty) return;
+
+    // flush debounce pra não “brigar” com o rename
+    _debounceSalvarCategorias?.cancel();
+
+    try {
+      if (mounted) setState(() => _savingCategorias = true);
+
+      final json = await ApiService.renomearCategoriaSubeventos(
+        eventoId: eventoId,
+        antiga: antigo,
+        nova: novo,
+      );
+
+      // atualiza o título salvo localmente
+      linha.tituloSalvo = novo;
+
+      if (!mounted) return;
+      setState(() {
+        _evento = Evento.fromAPI(json);
+        _changed = true;
+      });
+
+      // recarrega pra refletir os subeventos já reclassificados
+      await _carregarSubeventosDoBackend();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erro ao renomear categoria: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _savingCategorias = false);
     }
-
-    linha.tituloSalvo = novo;
-    _changed = true;
-
-    await _salvarCategoriasAgora();
-
-    // recarrega evento + subeventos com nomes novos
-    await _carregarSubeventosDoBackend();
-  } catch (e) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Erro ao renomear categoria: $e'),
-        backgroundColor: Colors.red,
-      ),
-    );
   }
-}
-
 
   // ===========================
   // NOVO SUBEVENTO
@@ -283,48 +281,20 @@ class _EventosPageInstitState extends State<EventosPageInstit> {
 
     if (!mounted || result == null) return;
 
-    // qualquer retorno -> recarrega do backend pra ficar consistente
     await _carregarSubeventosDoBackend();
     if (!mounted) return;
     setState(() => _changed = true);
   }
 
   // ===========================
-  // EDITAR / EXCLUIR EVENTO
+  // EXCLUIR / SAIR
   // ===========================
-
-  Future<void> _editarEvento() async {
-    final bool? edited = await context.push<bool>(
-      '/login/editar_evento',
-      extra: _evento,
-    );
-
-    if (!mounted) return;
-
-    if (edited == true) {
-      _changed = true;
-      try {
-        final json = await ApiService.obterEvento(_evento.id ?? '');
-        if (!mounted) return;
-        setState(() => _evento = Evento.fromAPI(json));
-      } catch (_) {}
-    }
-  }
 
   Future<void> _excluirEvento() async {
     if (_deleting) return;
 
     final id = _evento.id;
-    if (id == null || id.isEmpty) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Evento sem ID. Não foi possível excluir.'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
+    if (id == null || id.isEmpty) return;
 
     final confirm = await showDialog<bool>(
       context: context,
@@ -332,14 +302,8 @@ class _EventosPageInstitState extends State<EventosPageInstit> {
         title: const Text('Excluir evento?'),
         content: const Text('Essa ação não pode ser desfeita.'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Excluir'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Excluir')),
         ],
       ),
     );
@@ -348,44 +312,20 @@ class _EventosPageInstitState extends State<EventosPageInstit> {
 
     try {
       setState(() => _deleting = true);
-
       await ApiService.deletarEvento(id);
-
       if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Evento excluído com sucesso!'),
-          backgroundColor: Colors.green,
-        ),
-      );
-
       _changed = true;
       context.pop(true);
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Erro ao excluir: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
     } finally {
       if (mounted) setState(() => _deleting = false);
     }
   }
 
-  // ===========================
-  // SAIR (SALVA ANTES)
-  // ===========================
-
   Future<void> _sairSalvando() async {
     _debounceSalvarCategorias?.cancel();
-
     if (_changed) {
       await _salvarCategoriasAgora();
     }
-
     if (!mounted) return;
     context.pop(_changed);
   }
@@ -442,14 +382,6 @@ class _EventosPageInstitState extends State<EventosPageInstit> {
                             onPressed: () => unawaited(_sairSalvando()),
                           ),
                         ),
-                        Positioned(
-                          top: 12,
-                          right: 12,
-                          child: _CircleIconButton(
-                            icon: Icons.edit,
-                            onPressed: _editarEvento,
-                          ),
-                        ),
                       ],
                     ),
                     const SizedBox(height: 24),
@@ -491,19 +423,16 @@ class _EventosPageInstitState extends State<EventosPageInstit> {
                                   canDelete: _linhas.length > 1 && i != 0,
                                   onTapAdd: () => _adicionarSubeventoNaLinha(i),
                                   onDelete: () => _removerLinha(i),
-                                  onTituloChanged: (_) => _markChangedAndQueueSave(),
+                                  onTituloChanged: (_) {
+                                    _changed = true;
+                                    _queueSalvarCategorias();
+                                  },
                                   onTituloSubmitted: (txt) => _renomearCategoria(_linhas[i], txt),
                                 ),
                               );
                             }),
 
-                            const SizedBox(height: 18),
-                            Text(
-                              'Puxe para baixo para atualizar os subeventos do banco.',
-                              style: TextStyle(color: Colors.grey.shade700, fontSize: 12),
-                            ),
                             const SizedBox(height: 12),
-
                             SizedBox(
                               width: double.infinity,
                               height: 52,
@@ -512,10 +441,6 @@ class _EventosPageInstitState extends State<EventosPageInstit> {
                                   backgroundColor: const Color.fromARGB(255, 255, 81, 81),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(50),
-                                    side: const BorderSide(
-                                      color: Color.fromARGB(255, 241, 69, 69),
-                                      width: 2,
-                                    ),
                                   ),
                                 ),
                                 onPressed: _deleting ? null : _excluirEvento,

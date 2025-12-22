@@ -1,11 +1,8 @@
 import 'dart:async';
-
 import 'package:flutter/material.dart';
 
 import 'package:apec/pages/data/model.dart';
 import 'package:apec/services/api_service.dart';
-
-// Card do subevento (abre sheet ao tocar, mas não tem botão de adicionar aqui)
 import 'package:apec/pages/components/card_subevento.dart';
 
 class EventPage extends StatefulWidget {
@@ -25,11 +22,15 @@ class _EventPageState extends State<EventPage> {
     _future = _carregarTudo();
   }
 
+  Future<void> _refresh() async {
+    setState(() => _future = _carregarTudo());
+    await _future;
+  }
+
   Future<_EventPageData> _carregarTudo() async {
     final eventoId = widget.evento.id;
 
-    // Se por algum motivo esse EventPage foi aberto sem id,
-    // renderiza só com o objeto recebido (sem subeventos/categorias do backend).
+    // Se abrir sem id, renderiza com o que veio (sem backend).
     if (eventoId == null || eventoId.isEmpty) {
       return _EventPageData(
         evento: widget.evento,
@@ -37,8 +38,6 @@ class _EventPageState extends State<EventPage> {
       );
     }
 
-    // Pega o Evento atualizado (pra trazer categoriasSubeventos já renomeadas)
-    // e pega os SubEventos do evento.
     final results = await Future.wait([
       ApiService.obterEvento(eventoId),
       ApiService.listarSubEventos(eventoPaiId: eventoId),
@@ -62,14 +61,12 @@ class _EventPageState extends State<EventPage> {
     return FutureBuilder<_EventPageData>(
       future: _future,
       builder: (context, snap) {
-        // Loading
         if (snap.connectionState == ConnectionState.waiting) {
           return const Scaffold(
             body: Center(child: CircularProgressIndicator()),
           );
         }
 
-        // Erro
         if (snap.hasError) {
           return Scaffold(
             body: SafeArea(
@@ -133,29 +130,31 @@ class _EventPageState extends State<EventPage> {
                 ],
               );
 
-        // 1) Monta a lista de categorias (rows) a partir do evento (backend)
-        // 2) Garante que categorias vindas de subevento também apareçam
+        // Mapa categoria -> lista
         final Map<String, List<SubEvento>> grupos = {};
-
-        // Sempre existe a base
         grupos['Subeventos'] = [];
 
-        // Categorias cadastradas no evento (aparecem mesmo vazias)
+        // Categorias cadastradas no Evento (mesmo vazias).
+        // Aqui estava o bug: cat.titulo não existe se cat for String.
+        final seen = <String>{'subeventos'};
         for (final cat in evento.categoriasSubeventos) {
-          final titulo = cat.titulo.trim();
-          if (titulo.isNotEmpty) {
+          final titulo = cat.toString().trim();
+          if (titulo.isEmpty) continue;
+
+          final key = titulo.toLowerCase();
+          if (seen.add(key)) {
             grupos.putIfAbsent(titulo, () => []);
           }
         }
 
-        // Agora coloca os subeventos dentro de suas categorias
+        // Encaixa subeventos na categoria
         for (final s in subs) {
           final titulo = (s.categoria ?? '').trim().isEmpty ? 'Subeventos' : s.categoria!.trim();
           grupos.putIfAbsent(titulo, () => []);
           grupos[titulo]!.add(s);
         }
 
-        // Ordenação simples: Subeventos primeiro, depois alfabético.
+        // Ordenação: Subeventos primeiro, depois alfabético
         final categoriasOrdenadas = grupos.keys.toList()
           ..sort((a, b) {
             if (a.toLowerCase() == 'subeventos') return -1;
@@ -170,40 +169,35 @@ class _EventPageState extends State<EventPage> {
               child: Column(
                 children: [
                   EventBanner(imagem: evento.imagem),
-
                   const SizedBox(height: 24),
-
                   Expanded(
-                    child: ListView(
-                      padding: const EdgeInsets.only(left: 10, right: 10, bottom: 24),
-                      children: [
-                        EventTitle(title: evento.nome),
-                        const SizedBox(height: 8),
+                    child: RefreshIndicator(
+                      onRefresh: _refresh,
+                      child: ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.only(left: 10, right: 10, bottom: 24),
+                        children: [
+                          EventTitle(title: evento.nome),
+                          const SizedBox(height: 8),
+                          EventDetailsRow(data: evento.data, local: evento.local),
+                          const SizedBox(height: 12),
+                          EventDescription(texto: evento.descricao),
+                          const SizedBox(height: 16),
 
-                        EventDetailsRow(
-                          data: evento.data,
-                          local: evento.local,
-                        ),
-                        const SizedBox(height: 12),
+                          ...categoriasOrdenadas.map((cat) {
+                            final lista = grupos[cat] ?? const <SubEvento>[];
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 14),
+                              child: _LinhaSubeventosReadOnly(
+                                titulo: cat,
+                                subeventos: lista,
+                              ),
+                            );
+                          }),
 
-                        EventDescription(texto: evento.descricao),
-                        const SizedBox(height: 16),
-
-                        // ROWS DE SUBEVENTOS (somente leitura)
-                        ...categoriasOrdenadas.map((cat) {
-                          final lista = grupos[cat] ?? const <SubEvento>[];
-
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 14),
-                            child: _LinhaSubeventosReadOnly(
-                              titulo: cat,
-                              subeventos: lista,
-                            ),
-                          );
-                        }),
-
-                        SizedBox(height: screenHeight * 0.02),
-                      ],
+                          SizedBox(height: screenHeight * 0.02),
+                        ],
+                      ),
                     ),
                   ),
                 ],
@@ -226,7 +220,6 @@ class _EventPageData {
   });
 }
 
-// ---------- ROW (read-only) ----------
 class _LinhaSubeventosReadOnly extends StatelessWidget {
   final String titulo;
   final List<SubEvento> subeventos;
@@ -250,7 +243,6 @@ class _LinhaSubeventosReadOnly extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 10),
-
         if (subeventos.isEmpty)
           Container(
             width: double.infinity,
@@ -283,7 +275,6 @@ class _LinhaSubeventosReadOnly extends StatelessWidget {
   }
 }
 
-// ---------- Banner ----------
 class EventBanner extends StatelessWidget {
   final String imagem;
   const EventBanner({super.key, required this.imagem});
@@ -300,8 +291,9 @@ class EventBanner extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          isNetwork ? Image.network(imagem, fit: BoxFit.cover) : Image.asset(imagem, fit: BoxFit.cover),
-
+          isNetwork
+              ? Image.network(imagem, fit: BoxFit.cover)
+              : Image.asset(imagem, fit: BoxFit.cover),
           Container(
             decoration: const BoxDecoration(
               gradient: LinearGradient(
@@ -314,7 +306,6 @@ class EventBanner extends StatelessWidget {
               ),
             ),
           ),
-
           Positioned(
             top: 12,
             left: 12,
@@ -336,7 +327,6 @@ class EventBanner extends StatelessWidget {
   }
 }
 
-// ---------- Título ----------
 class EventTitle extends StatelessWidget {
   final String title;
   const EventTitle({super.key, required this.title});
@@ -354,7 +344,6 @@ class EventTitle extends StatelessWidget {
   }
 }
 
-// ---------- Descrição ----------
 class EventDescription extends StatelessWidget {
   final String texto;
   const EventDescription({super.key, required this.texto});
@@ -384,7 +373,6 @@ class EventDescription extends StatelessWidget {
   }
 }
 
-// ---------- Data / local ----------
 class EventDetailsRow extends StatelessWidget {
   final String data;
   final String local;
