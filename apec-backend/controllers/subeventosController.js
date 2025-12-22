@@ -1,5 +1,6 @@
 // apec-backend/controllers/subeventosController.js
-const SubEvento = require('../models/Subevento');
+const SubEvento = require('../models/SubEvento');
+
 
 exports.listarSubEventos = async (req, res) => {
   try {
@@ -37,13 +38,20 @@ exports.criarSubEvento = async (req, res) => {
     if (!dados.nome || !dados.data || !dados.horario || !dados.local) {
       return res.status(400).json({ erro: 'Campos obrigatórios faltando' });
     }
-    if (!dados.instituicaoId) return res.status(400).json({ erro: 'instituicaoId é obrigatório' });
-    if (!dados.eventoPaiId) return res.status(400).json({ erro: 'eventoPaiId é obrigatório' });
+    if (!dados.instituicaoId) {
+      return res.status(400).json({ erro: 'instituicaoId é obrigatório' });
+    }
+    if (!dados.eventoPaiId) {
+      return res.status(400).json({ erro: 'eventoPaiId é obrigatório' });
+    }
 
+    // Categoria: texto da row (padrão Subeventos)
     dados.categoria = (dados.categoria || 'Subeventos').toString().trim();
     if (!dados.categoria) dados.categoria = 'Subeventos';
 
-    if (req.file) dados.imagem = req.file.path;
+    if (req.file) {
+      dados.imagem = req.file.path;
+    }
 
     const novo = new SubEvento(dados);
     await novo.save();
@@ -54,9 +62,13 @@ exports.criarSubEvento = async (req, res) => {
 
     return res.status(201).json(populado);
   } catch (error) {
-    return res.status(400).json({ erro: 'Erro ao criar subevento', detalhes: error.message });
+    console.error('Erro ao criar subevento:', error);
+    return res
+      .status(400)
+      .json({ erro: 'Erro ao criar subevento', detalhes: error.message });
   }
 };
+
 
 
 

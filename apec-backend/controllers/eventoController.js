@@ -1,6 +1,7 @@
-// controllers/eventoController.js
+const mongoose = require('mongoose');
 const Evento = require('../models/Evento');
-const SubEvento = require('../models/Subevento');
+const SubEvento = require('../models/SubEvento'); // ou '../models/Subevento' conforme o nome real do arquivo
+
 
 // Listar todos os eventos (já trazendo instituição)
 exports.listarEventos = async (req, res) => {
@@ -111,49 +112,70 @@ exports.renomearCategoriaSubeventos = async (req, res) => {
     const { id } = req.params;
     let { antiga, nova } = req.body;
 
+    console.log('RENAME REQUEST:', { id, antiga, nova });
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: 'ID de evento inválido' });
+    }
+
     antiga = (antiga || '').toString().trim();
     nova = (nova || '').toString().trim();
 
     if (!antiga || !nova) {
-      return res.status(400).json({ message: 'antiga e nova são obrigatórias' });
+      return res
+        .status(400)
+        .json({ message: 'Categoria antiga e nova são obrigatórias' });
     }
 
     const evento = await Evento.findById(id);
-    if (!evento) return res.status(404).json({ message: 'Evento não encontrado' });
+    if (!evento) {
+      return res.status(404).json({ message: 'Evento não encontrado' });
+    }
 
-    // 1) renomeia no array (case-insensitive)
-    const cats = (evento.categoriasSubeventos || []).map((c) => (c || '').toString().trim());
+    // 1) Atualiza array de categorias do evento (case-insensitive)
+    const cats = (evento.categoriasSubeventos || []).map((c) =>
+      (c || '').toString().trim()
+    );
     evento.categoriasSubeventos = cats.map((c) =>
       c.toLowerCase() === antiga.toLowerCase() ? nova : c
     );
 
-    // remove duplicados por case + força "Subeventos" no topo
-    const seen = new Set();
-    const unique = [];
+    // Garante "Subeventos" e remove duplicadas
+    const seen = new Set(['subeventos']);
+    const unique = ['Subeventos'];
     for (const c of evento.categoriasSubeventos) {
-      const key = c.toLowerCase();
       if (!c) continue;
-      if (!seen.has(key)) {
-        seen.add(key);
+      const lower = c.toLowerCase();
+      if (!seen.has(lower)) {
+        seen.add(lower);
         unique.push(c);
       }
     }
-    evento.categoriasSubeventos = ['Subeventos', ...unique.filter((c) => c.toLowerCase() !== 'subeventos')];
+    evento.categoriasSubeventos = unique;
 
     await evento.save();
+    console.log('Evento atualizado, categorias:', evento.categoriasSubeventos);
 
-    // 2) migra subeventos
-    await SubEvento.updateMany(
+    // 2) Atualiza todos os subeventos daquela categoria
+    const result = await SubEvento.updateMany(
       { eventoPaiId: id, categoria: antiga },
       { $set: { categoria: nova } }
     );
+    console.log('Subeventos migrados:', result);
 
-    const eventoPop = await Evento.findById(id).populate('instituicaoId', 'nome fotoUrl');
+    const eventoPop = await Evento.findById(id).populate(
+      'instituicaoId',
+      'nome fotoUrl'
+    );
     return res.json(eventoPop);
   } catch (err) {
-    console.error('Erro ao renomear categoria:', err);
-    return res.status(500).json({ message: 'Erro ao renomear categoria' });
+    console.error('ERRO CRÍTICO NO RENAME:', err);
+    return res.status(500).json({
+      message: 'Erro ao renomear categoria',
+      error: err.message || String(err),
+    });
   }
 };
+
 
 

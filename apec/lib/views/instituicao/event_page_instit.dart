@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 
 import 'package:apec/pages/data/model.dart';
 import 'package:apec/services/api_service.dart';
+
+// ÚNICO card de subevento usado aqui:
 import 'package:apec/pages/components/card_subevento.dart';
 
 import 'package:apec/views/event_page.dart'; // EventBanner, EventTitle, EventDetailsRow, EventDescription
@@ -72,7 +74,6 @@ class _EventosPageInstitState extends State<EventosPageInstit> {
       setState(() {
         _evento = eventoAtualizado;
 
-        // recria linhas
         for (final l in _linhas) {
           l.controller.dispose();
         }
@@ -81,7 +82,7 @@ class _EventosPageInstitState extends State<EventosPageInstit> {
         // base fixa
         _linhas.add(_SubeventoLinha(titulo: 'Subeventos'));
 
-        // 1) sempre monta as linhas pela fonte da verdade: evento.categoriasSubeventos (mesmo vazias)
+        // categorias do evento (mesmo vazias)
         final rawCats = _evento.categoriasSubeventos;
         for (final item in rawCats) {
           final t = item.toString().trim();
@@ -92,15 +93,16 @@ class _EventosPageInstitState extends State<EventosPageInstit> {
           }
         }
 
-        // 2) encaixa subeventos nas linhas existentes.
-        //    IMPORTANTE: não cria linha nova se o subevento vier com categoria não listada,
-        //    pra não “ressuscitar” categoria antiga e parecer duplicação.
+        // agrupa subeventos nas linhas (NÃO cria linha nova se vier categoria não listada)
         for (final s in subs) {
-          final cat = (s.categoria ?? '').trim().isEmpty ? 'Subeventos' : s.categoria!.trim();
+          final cat = (s.categoria ?? '').trim().isEmpty
+              ? 'Subeventos'
+              : s.categoria!.trim();
           final idx = _indexLinhaPorTitulo(cat);
 
           if (idx == -1) {
-            // categoria desatualizada/fora da lista -> cai na base
+            // se vier categoria “antiga” que não existe mais no array do evento,
+            // não cria nova row: joga na base.
             _linhas[0].subeventos.add(s);
           } else {
             _linhas[idx].subeventos.add(s);
@@ -195,7 +197,7 @@ class _EventosPageInstitState extends State<EventosPageInstit> {
       _changed = true;
     });
 
-    // cria a row no Evento (persistência) sem renomear subeventos
+    // cria a row no Evento (persistência) sem mexer em subeventos
     unawaited(_salvarCategoriasAgora());
   }
 
@@ -213,7 +215,7 @@ class _EventosPageInstitState extends State<EventosPageInstit> {
   }
 
   // ===========================
-  // RENOMEAR (evento + subeventos)
+  // RENOMEAR (EVENTO + SUBEVENTOS)
   // ===========================
 
   Future<void> _renomearCategoria(_SubeventoLinha linha, String novoTitulo) async {
@@ -221,7 +223,6 @@ class _EventosPageInstitState extends State<EventosPageInstit> {
     final antigo = linha.tituloSalvo.trim();
 
     if (novo.isEmpty) {
-      // se apagar, volta pro salvo para não quebrar a lista
       linha.controller.text = antigo;
       return;
     }
@@ -230,7 +231,6 @@ class _EventosPageInstitState extends State<EventosPageInstit> {
     final eventoId = _evento.id;
     if (eventoId == null || eventoId.isEmpty) return;
 
-    // não deixar o debounce de salvar lista “brigar” com rename
     _debounceSalvarCategorias?.cancel();
 
     try {
@@ -242,7 +242,6 @@ class _EventosPageInstitState extends State<EventosPageInstit> {
         nova: novo,
       );
 
-      // atualiza o salvo local
       linha.tituloSalvo = novo;
 
       if (!mounted) return;
@@ -251,12 +250,9 @@ class _EventosPageInstitState extends State<EventosPageInstit> {
         _changed = true;
       });
 
-      // recarrega pra refletir subeventos já migrados
       await _carregarSubeventosDoBackend();
     } catch (e) {
-      // rollback visual
       linha.controller.text = antigo;
-
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -431,10 +427,11 @@ class _EventosPageInstitState extends State<EventosPageInstit> {
                                   canDelete: _linhas.length > 1 && i != 0,
                                   onTapAdd: () => _adicionarSubeventoNaLinha(i),
                                   onDelete: () => _removerLinha(i),
-                                  onRenameCommit: (txt) => _renomearCategoria(_linhas[i], txt),
-                                  onChangedLocalOnly: (_) {
-                                    _changed = true; // não salva nem renomeia enquanto digita
+                                  onTituloChanged: (_) {
+                                    _changed = true; // não salva/renomeia aqui
                                   },
+                                  onTituloSubmitted: (txt) =>
+                                      _renomearCategoria(_linhas[i], txt),
                                 ),
                               );
                             }),
@@ -488,20 +485,16 @@ class _LinhaSubeventos extends StatelessWidget {
   final bool canDelete;
   final VoidCallback onTapAdd;
   final VoidCallback onDelete;
-
-  /// Só marca estado local (não salva / não renomeia)
-  final ValueChanged<String> onChangedLocalOnly;
-
-  /// Commit do rename (submit ou perder foco)
-  final ValueChanged<String> onRenameCommit;
+  final ValueChanged<String> onTituloChanged;
+  final ValueChanged<String> onTituloSubmitted;
 
   const _LinhaSubeventos({
     required this.linha,
     required this.canDelete,
     required this.onTapAdd,
     required this.onDelete,
-    required this.onChangedLocalOnly,
-    required this.onRenameCommit,
+    required this.onTituloChanged,
+    required this.onTituloSubmitted,
   });
 
   @override
@@ -516,13 +509,13 @@ class _LinhaSubeventos extends StatelessWidget {
               child: Focus(
                 onFocusChange: (hasFocus) {
                   if (!hasFocus) {
-                    onRenameCommit(linha.controller.text);
+                    onTituloSubmitted(linha.controller.text);
                   }
                 },
                 child: TextField(
                   controller: linha.controller,
-                  onChanged: onChangedLocalOnly,
-                  onSubmitted: onRenameCommit,
+                  onChanged: onTituloChanged,
+                  onSubmitted: onTituloSubmitted,
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w600,
