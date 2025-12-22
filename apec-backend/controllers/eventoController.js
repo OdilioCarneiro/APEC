@@ -1,10 +1,11 @@
 const Evento = require('../models/Evento');
+const SubEvento = require('../models/Subevento');
 
 // Listar todos os eventos (já trazendo instituição)
 exports.listarEventos = async (req, res) => {
   try {
     const eventos = await Evento.find()
-      .populate('instituicaoId', 'nome fotoUrl') // só o que o app precisa
+      .populate('instituicaoId', 'nome fotoUrl')
       .sort({ data: 1 });
 
     return res.json(eventos);
@@ -103,34 +104,36 @@ exports.listarEventosPorInstituicao = async (req, res) => {
   }
 };
 
-// apec-backend/controllers/eventosController.js
-const SubEvento = require('../models/Subevento');
-const Evento = require('../models/Evento');
-
+// RENOMEAR categoria (atualiza evento + subeventos)
 exports.renomearCategoriaSubeventos = async (req, res) => {
   try {
     const { antiga, nova } = req.body;
     if (!antiga || !nova) return res.status(400).json({ erro: 'antiga e nova são obrigatórios' });
 
-    // 1) Atualiza evento.categoriasSubeventos
+    const antigaTrim = String(antiga).trim();
+    const novaTrim = String(nova).trim();
+    if (!antigaTrim || !novaTrim) return res.status(400).json({ erro: 'antiga/nova inválidas' });
+
+    // 1) Atualiza categoriasSubeventos no evento
     const evento = await Evento.findById(req.params.id);
     if (!evento) return res.status(404).json({ erro: 'Evento não encontrado' });
 
     const cats = Array.isArray(evento.categoriasSubeventos) ? evento.categoriasSubeventos : [];
-    evento.categoriasSubeventos = cats.map((c) => (String(c).trim() === String(antiga).trim() ? String(nova).trim() : c));
+    evento.categoriasSubeventos = cats.map((c) => (String(c).trim() === antigaTrim ? novaTrim : c));
     await evento.save();
 
-    // 2) Atualiza todos subeventos daquela categoria
+    // 2) Atualiza todos os subeventos daquela categoria
     await SubEvento.updateMany(
-      { eventoPaiId: req.params.id, categoria: String(antiga).trim() },
-      { $set: { categoria: String(nova).trim() } }
+      { eventoPaiId: req.params.id, categoria: antigaTrim },
+      { $set: { categoria: novaTrim } }
     );
 
     // 3) Retorna evento atualizado
-    const eventoPop = await Evento.findById(req.params.id).populate('instituicaoId', 'nome fotoUrl');
+    const eventoPop = await Evento.findById(req.params.id)
+      .populate('instituicaoId', 'nome fotoUrl');
+
     return res.json(eventoPop);
   } catch (error) {
     return res.status(400).json({ erro: 'Erro ao renomear categoria', detalhes: error.message });
   }
 };
-
