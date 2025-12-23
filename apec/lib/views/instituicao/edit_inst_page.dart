@@ -51,18 +51,14 @@ class _EditarInstPageState extends State<EditarInstPage> {
     final data = widget.initial;
     if (data == null) return;
 
-    _instId = (data['id'] ?? '').toString();
+    _instId = (data['id'] ?? '').toString(); // vem do _id do Mongo
     _nomeInstController.text = (data['nome'] ?? '').toString();
     _campusController.text = (data['campus'] ?? '').toString();
-    _bioInstControllerSafeSet((data['bio'] ?? '').toString());
+    _bioController.text = (data['bio'] ?? '').toString();
     _emailController.text = (data['email'] ?? '').toString();
 
     final img = (data['imagemUrl'] ?? '').toString().trim();
     _imagemUrlAtual = img.isEmpty ? null : img;
-  }
-
-  void _bioInstControllerSafeSet(String value) {
-    _bioController.text = value;
   }
 
   @override
@@ -170,7 +166,7 @@ class _EditarInstPageState extends State<EditarInstPage> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Excluir instituição?'),
-        content: const Text('Essa ação não pode ser desfeita. Todos os dados serão removidos.'),
+        content: const Text('Essa ação não pode ser desfeita. Todos os eventos serão apagados.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -196,7 +192,9 @@ class _EditarInstPageState extends State<EditarInstPage> {
 
       if (!mounted) return;
       _snack('Instituição excluída.', bg: Colors.red);
-      // fecha a tela de edição, e quem chamou pode tratar logout/navegação
+
+      // aqui você pode fazer logout e voltar pra tela inicial se quiser,
+      // por enquanto só volta e avisa o chamador:
       context.pop(true);
     } catch (e) {
       _snack('Erro ao excluir: $e', bg: Colors.red);
@@ -451,7 +449,6 @@ class _EditarInstPageState extends State<EditarInstPage> {
                         ),
                       ),
 
-                      // Botão de voltar (seta) no canto superior esquerdo
                       Positioned(
                         top: 8,
                         left: 8,

@@ -91,28 +91,29 @@ class _PerfilInstituicaoPageState extends State<PerfilInstituicaoPage> {
     await _carregarEventos();
   }
 
-  Future<void> _abrirEditarPerfil() async {
-    if (_inst == null) return;
+Future<void> _abrirEditarPerfil() async {
+  if (_inst == null) return;
 
-    final inst = _inst!;
-    final id = (inst['_id'] ?? inst['id'] ?? '').toString();
+  final inst = _inst!;
+  final id = (inst['_id'] ?? inst['id'] ?? '').toString();
 
-    await context.push<bool>(
-      '/login/edit_inst_page',
-      extra: {
-        'id': id,
-        'nome': (inst['nome'] ?? '').toString(),
-        'campus': (inst['campus'] ?? '').toString(),
-        'bio': (inst['bio'] ?? inst['descricao'] ?? '').toString(),
-        'email': (inst['email'] ?? '').toString(),
-        'imagemUrl': (inst['fotoUrl'] ?? inst['imagem'] ?? inst['foto'] ?? '').toString(),
-      },
-    );
+  await context.push<bool>(
+    '/login/edit_inst_page',
+    extra: {
+      'id': id,
+      'nome': (inst['nome'] ?? '').toString(),
+      'campus': (inst['campus'] ?? '').toString(),
+      'bio': (inst['bio'] ?? inst['descricao'] ?? '').toString(),
+      'email': (inst['email'] ?? '').toString(),
+      'imagemUrl': (inst['fotoUrl'] ?? inst['imagem'] ?? inst['foto'] ?? '').toString(),
+    },
+  );
 
-    if (!mounted) return;
-    // sempre recarrega do backend assim que voltar
-    await _carregarPerfil();
-  }
+  if (!mounted) return;
+  await _carregarPerfil();   // recarrega dados da instituição
+  await _carregarEventos();  // recarrega eventos
+}
+
 
   @override
   Widget build(BuildContext context) {

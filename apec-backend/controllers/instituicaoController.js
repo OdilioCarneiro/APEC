@@ -1,5 +1,7 @@
 // controllers/instituicaoController.js
 const Instituicao = require('../models/Instituicao');
+const Evento = require('../models/Evento');      // ajuste o caminho se for outro
+const SubEvento = require('../models/Subevento'); //
 
 // LISTAR
 exports.listarInstituicoes = async (req, res) => {
@@ -119,22 +121,25 @@ exports.deletarInstituicao = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const inst = await Instituicao.findByIdAndDelete(id);
+    // primeiro busca pra ver se existe
+    const inst = await Instituicao.findById(id);
     if (!inst) return res.status(404).json({ error: 'Instituição não encontrada' });
 
     // apaga TODOS os eventos dessa instituição
     const eventos = await Evento.find({ instituicaoId: id }).select('_id').lean();
     const eventoIds = eventos.map((e) => e._id);
 
-    if (eventoIds.isNotEmpty) {
-      // apaga subeventos desses eventos
+    if (eventoIds.length > 0) {
       await SubEvento.deleteMany({ eventoPaiId: { $in: eventoIds } });
-      // apaga eventos
       await Evento.deleteMany({ _id: { $in: eventoIds } });
     }
 
+    // por último, apaga a instituição
+    await Instituicao.findByIdAndDelete(id);
+
     return res.status(204).send();
   } catch (e) {
+    console.error('Erro ao deletar instituição:', e);
     return res.status(500).json({ error: String(e) });
   }
 };
