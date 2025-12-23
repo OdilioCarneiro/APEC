@@ -1,78 +1,127 @@
+// controllers/instituicaoController.js
 const Instituicao = require('../models/Instituicao');
 
-// Listar todas as instituições (opcional)
+// LISTAR
 exports.listarInstituicoes = async (req, res) => {
   try {
-    const insts = await Instituicao.find().sort({ createdAt: -1 });
-    res.json(insts);
-  } catch (error) {
-    res.status(500).json({ erro: 'Erro ao listar instituições', detalhes: error.message });
+    const list = await Instituicao.find().lean();
+    return res.json(list);
+  } catch (e) {
+    return res.status(500).json({ error: String(e) });
   }
 };
 
-// Obter instituição por ID
+// OBTER POR ID
 exports.obterInstituicao = async (req, res) => {
   try {
-    const inst = await Instituicao.findById(req.params.id);
-    if (!inst) return res.status(404).json({ erro: 'Instituição não encontrada' });
-    res.json(inst);
-  } catch (error) {
-    res.status(500).json({ erro: 'Erro ao obter instituição', detalhes: error.message });
+    const { id } = req.params;
+    const inst = await Instituicao.findById(id).lean();
+    if (!inst) return res.status(404).json({ error: 'Instituição não encontrada' });
+    return res.json(inst);
+  } catch (e) {
+    return res.status(500).json({ error: String(e) });
   }
 };
 
-// Criar nova instituição (com Cloudinary, igual eventos)
+// CRIAR (já existente, ajusta só pra garantir imagem = req.file.path)
 exports.criarInstituicao = async (req, res) => {
   try {
-    console.log('BODY:', req.body);
-    console.log('FILE:', req.file);
+    const { nome, campus, bio, email, senha } = req.body;
 
-    const dados = req.body;
-
-    // validações mínimas
-    if (!dados.nome || !dados.email || !dados.senha) {
-      return res.status(400).json({ erro: 'nome, email e senha são obrigatórios' });
+    if (!nome || !email || !senha) {
+      return res.status(400).json({ error: 'nome, email e senha são obrigatórios' });
     }
 
-    // não deixar email duplicado
-    const jaExiste = await Instituicao.findOne({ email: dados.email });
-    if (jaExiste) {
-      return res.status(409).json({ erro: 'Email já cadastrado' });
+    const data = {
+      nome: String(nome).trim(),
+      campus: campus ? String(campus).trim() : '',
+      bio: bio ? String(bio).trim() : '',
+      email: String(email).trim().toLowerCase(),
+      senha: String(senha).trim(), // (futuro: bcrypt)
+    };
+
+    if (req.file && req.file.path) {
+      data.imagem = req.file.path; // url/path vindo do Cloudinary/multer
     }
 
-    // se veio imagem, salva link do cloudinary
-    if (req.file) {
-      dados.imagem = req.file.path;
+    const inst = await Instituicao.create(data);
+    return res.status(201).json(inst);
+  } catch (e) {
+    if (e.code === 11000) {
+      return res.status(409).json({ error: 'Email já cadastrado' });
     }
-
-    const novaInstituicao = new Instituicao(dados);
-    await novaInstituicao.save();
-
-    res.status(201).json(novaInstituicao);
-  } catch (error) {
-    res.status(400).json({ erro: 'Erro ao criar instituição', detalhes: error.message });
+    return res.status(500).json({ error: String(e) });
   }
 };
 
-// Login instituição (bem simples)
+// LOGIN (mantém sua lógica, só exemplo mínimo)
 exports.loginInstituicao = async (req, res) => {
   try {
     const { email, senha } = req.body;
-
-    const inst = await Instituicao.findOne({ email });
-    if (!inst) return res.status(401).json({ erro: 'Credenciais inválidas' });
-
-    if (inst.senha !== senha) {
-      return res.status(401).json({ erro: 'Credenciais inválidas' });
+    if (!email || !senha) {
+      return res.status(400).json({ error: 'Email e senha são obrigatórios' });
     }
 
-    // retorno mínimo pro app conseguir abrir o perfil correto
-    res.json({
-      instituicaoId: inst._id,
-      nome: inst.nome,
-      email: inst.email,
+    const inst = await Instituicao.findOne({
+      email: String(email).trim().toLowerCase(),
+      senha: String(senha).trim(), // (futuro: comparar hash)
     });
-  } catch (error) {
-    res.status(500).json({ erro: 'Erro ao fazer login', detalhes: error.message });
+
+    if (!inst) {
+      return res.status(401).json({ error: 'Credenciais inválidas' });
+    }
+
+    return res.json({ instituicaoId: inst._id, instituicao: inst });
+  } catch (e) {
+    return res.status(500).json({ error: String(e) });
+  }
+};
+
+// ATUALIZAR
+exports.atualizarInstituicao = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const update = {};
+    if (req.body.nome != null) update.nome = String(req.body.nome).trim();
+    if (req.body.campus != null) update.campus = String(req.body.campus).trim();
+    if (req.body.bio != null) update.bio = String(req.body.bio).trim();
+    if (req.body.email != null) {
+      update.email = String(req.body.email).trim().toLowerCase();
+    }
+
+    if (req.body.senha != null && String(req.body.senha).trim() !== '') {
+      update.senha = String(req.body.senha).trim();
+    }
+
+    if (req.file && req.file.path) {
+      update.imagem = req.file.path; // MESMO campo do create
+    }
+
+    const inst = await Instituicao.findByIdAndUpdate(
+      id,
+      { $set: update },
+      { new: true }
+    );
+
+    if (!inst) return res.status(404).json({ error: 'Instituição não encontrada' });
+    return res.json(inst);
+  } catch (e) {
+    if (e.code === 11000) {
+      return res.status(409).json({ error: 'Email já cadastrado' });
+    }
+    return res.status(500).json({ error: String(e) });
+  }
+};
+
+// DELETAR
+exports.deletarInstituicao = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const inst = await Instituicao.findByIdAndDelete(id);
+    if (!inst) return res.status(404).json({ error: 'Instituição não encontrada' });
+    return res.status(204).send();
+  } catch (e) {
+    return res.status(500).json({ error: String(e) });
   }
 };

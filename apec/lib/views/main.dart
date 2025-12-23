@@ -18,8 +18,9 @@ import 'package:apec/views/home_page.dart';
 import 'package:apec/views/sport_page.dart';
 import 'package:apec/views/cultura_page.dart';
 import 'package:apec/views/instituicao/insituit_page.dart';
-import 'package:apec/pages/CadasInstPage.dart';
+import 'package:apec/views/instituicao/CadasInstPage.dart';
 import 'package:apec/views/cadastro_subevento_page.dart';
+import 'package:apec/views/instituicao/edit_inst_page.dart';
 
 import 'package:apec/pages/components/tabview.dart';
 
@@ -94,7 +95,7 @@ final GoRouter _router = GoRouter(
           builder: (context, state) => const InstitPage(),
           routes: [
             GoRoute(
-              path: 'editar_evento', // <<< RELATIVO (sem "/")
+              path: 'editar_evento',
               builder: (context, state) {
                 final evento = state.extra as Evento;
                 return EditarEventoPage(evento: evento);
@@ -108,6 +109,14 @@ final GoRouter _router = GoRouter(
               path: 'cadastro_instituicao', // <<< RELATIVO
               builder: (context, state) => const CadasInstPage(),
             ),
+            GoRoute(
+              path: '/edit_inst_page',
+              builder: (context, state) {
+                final initial = state.extra as Map<String, dynamic>?; // pode ser null
+                return EditarInstPage(initial: initial);
+              },
+            ),
+
           ],
         ),
 

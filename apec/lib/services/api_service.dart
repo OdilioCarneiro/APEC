@@ -106,6 +106,56 @@ class ApiService {
     _throwHttp(response, 'Erro ao cadastrar instituição');
   }
 
+  static Future<Map<String, dynamic>> atualizarInstituicaoSmart({
+  required String instituicaoId,
+  required Map<String, dynamic> dados,
+  File? novaImagem,
+}) async {
+  final uri = _uri('/instituicoes/$instituicaoId');
+
+  // Se NÃO tem imagem nova, manda JSON normal (mais simples)
+  if (novaImagem == null) {
+    final response = await http
+        .put(
+          uri,
+          headers: _headersJson(),
+          body: json.encode(dados),
+        )
+        .timeout(_timeout);
+
+    if (response.statusCode == 200) {
+      return _decodeMap(response);
+    }
+
+    _throwHttp(response, 'Erro ao atualizar instituição (JSON)');
+  }
+
+  // Se TEM imagem nova, manda multipart
+  final request = http.MultipartRequest('PUT', uri);
+
+  dados.forEach((key, value) {
+    if (value != null) request.fields[key] = value.toString();
+  });
+
+  request.files.add(
+    await http.MultipartFile.fromPath(
+      'file', // MESMO campo do cadastro
+      novaImagem.path,
+      filename: novaImagem.path.split('/').last,
+    ),
+  );
+
+  final streamed = await request.send().timeout(_timeout);
+  final response = await http.Response.fromStream(streamed);
+
+  if (response.statusCode == 200) {
+    return _decodeMap(response);
+  }
+
+  _throwHttp(response, 'Erro ao atualizar instituição (Multipart)');
+}
+
+
   static Future<Map<String, dynamic>> loginInstituicao({
     required String email,
     required String senha,

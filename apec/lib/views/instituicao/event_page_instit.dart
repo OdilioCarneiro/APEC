@@ -78,7 +78,6 @@ class _EventosPageInstitState extends State<EventosPageInstit> {
         // 1) monta TODAS as linhas a partir de categoriasSubeventos
         final rawCats = _evento.categoriasSubeventos;
         if (rawCats.isEmpty) {
-          // se o evento ainda não tem nada, cria uma row padrão
           _linhas.add(_SubeventoLinha(titulo: 'Nova categoria'));
         } else {
           for (final item in rawCats) {
@@ -90,20 +89,18 @@ class _EventosPageInstitState extends State<EventosPageInstit> {
           }
         }
 
-        // 2) encaixa subeventos nas linhas existentes (sem criar linha nova)
+        // 2) encaixa subeventos nas linhas existentes (CRIANDO linha se precisar)
         for (final s in subs) {
           final cat = (s.categoria ?? '').trim();
           final titulo = cat.isEmpty ? 'Nova categoria' : cat;
-          final idx = _indexLinhaPorTitulo(titulo);
 
+          var idx = _indexLinhaPorTitulo(titulo);
           if (idx == -1) {
-            if (_linhas.isEmpty) {
-              _linhas.add(_SubeventoLinha(titulo: titulo));
-            }
-            _linhas[0].subeventos.add(s);
-          } else {
-            _linhas[idx].subeventos.add(s);
+            _linhas.add(_SubeventoLinha(titulo: titulo));
+            idx = _linhas.length - 1;
           }
+
+          _linhas[idx].subeventos.add(s);
         }
 
         if (_linhas.isEmpty) {
@@ -124,6 +121,39 @@ class _EventosPageInstitState extends State<EventosPageInstit> {
   }
 
   // ===========================
+  // HELPERS (nomes únicos / validação)
+  // ===========================
+
+  String _gerarTituloUnico(String base) {
+    final existentes = _linhas
+        .map((l) => l.controller.text.trim().toLowerCase())
+        .where((t) => t.isNotEmpty)
+        .toSet();
+
+    if (!existentes.contains(base.toLowerCase())) return base;
+
+    int n = 2;
+    while (existentes.contains('${base.toLowerCase()} $n')) {
+      n++;
+    }
+    return '$base $n';
+  }
+
+  bool _temDuplicatasIgnorandoCase() {
+    final titulos = _linhas
+        .map((l) => l.controller.text.trim())
+        .where((t) => t.isNotEmpty)
+        .toList();
+
+    final seen = <String>{};
+    for (final t in titulos) {
+      final k = t.toLowerCase();
+      if (!seen.add(k)) return true;
+    }
+    return false;
+  }
+
+  // ===========================
   // CATEGORIAS -> SALVAR NO EVENTO (add/remover)
   // ===========================
 
@@ -135,20 +165,10 @@ class _EventosPageInstitState extends State<EventosPageInstit> {
   }
 
   List<String> _titulosCategoriasUi() {
-    final titulos = _linhas
+    return _linhas
         .map((l) => l.controller.text.trim())
         .where((t) => t.isNotEmpty)
         .toList();
-
-    // NÃO força mais "Subeventos" em lugar nenhum
-    final seen = <String>{};
-    final unique = <String>[];
-    for (final t in titulos) {
-      final key = t.toLowerCase();
-      if (seen.add(key)) unique.add(t);
-    }
-
-    return unique;
   }
 
   Future<void> _salvarCategoriasAgora() async {
@@ -156,6 +176,18 @@ class _EventosPageInstitState extends State<EventosPageInstit> {
 
     final eventoId = _evento.id;
     if (eventoId == null || eventoId.isEmpty) return;
+
+    // não salva se estiver duplicado; isso causa efeitos colaterais no rename
+    if (_temDuplicatasIgnorandoCase()) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Existem categorias com o mesmo nome. Renomeie para nomes diferentes.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
 
     final titulos = _titulosCategoriasUi();
 
@@ -188,7 +220,8 @@ class _EventosPageInstitState extends State<EventosPageInstit> {
 
   void _adicionarLinha() {
     setState(() {
-      _linhas.add(_SubeventoLinha(titulo: 'Nova categoria'));
+      final titulo = _gerarTituloUnico('Nova categoria');
+      _linhas.add(_SubeventoLinha(titulo: titulo));
       _changed = true;
     });
 
@@ -212,6 +245,8 @@ class _EventosPageInstitState extends State<EventosPageInstit> {
   // ===========================
 
   Future<void> _renomearCategoria(_SubeventoLinha linha, String novoTitulo) async {
+    if (_savingCategorias) return; // guarda simples contra duplo submit (focus + onSubmitted)
+
     final novo = novoTitulo.trim();
     final antigo = linha.tituloSalvo.trim();
 
@@ -219,7 +254,30 @@ class _EventosPageInstitState extends State<EventosPageInstit> {
       linha.controller.text = antigo;
       return;
     }
-    if (antigo.isNotEmpty && novo.toLowerCase() == antigo.toLowerCase()) return;
+    if (antigo.isNotEmpty && novo.toLowerCase() == antigo.toLowerCase()) {
+      // garante controller “limpo”
+      linha.controller.text = novo;
+      return;
+    }
+
+    // bloquear duplicata (senão “funde” categorias)
+    final novoKey = novo.toLowerCase();
+    final existeOutroIgual = _linhas.any((l) {
+      if (identical(l, linha)) return false;
+      return l.controller.text.trim().toLowerCase() == novoKey;
+    });
+
+    if (existeOutroIgual) {
+      linha.controller.text = antigo;
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Já existe uma categoria com esse nome.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
 
     final eventoId = _evento.id;
     if (eventoId == null || eventoId.isEmpty) return;
@@ -235,7 +293,9 @@ class _EventosPageInstitState extends State<EventosPageInstit> {
         nova: novo,
       );
 
+      // atualiza estado local da linha
       linha.tituloSalvo = novo;
+      linha.controller.text = novo;
 
       if (!mounted) return;
       setState(() {
@@ -382,6 +442,17 @@ class _EventosPageInstitState extends State<EventosPageInstit> {
                             onPressed: () => unawaited(_sairSalvando()),
                           ),
                         ),
+                        Positioned(
+                          top: 12,
+                          right: 12,
+                          child: _CircleIconButton(
+                            icon: Icons.edit,
+                            onPressed: () => context.push(
+                              '/login/editar_evento',
+                              extra: evento,
+                            ),
+                          ),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 24),
@@ -423,8 +494,7 @@ class _EventosPageInstitState extends State<EventosPageInstit> {
                                   onTituloChanged: (_) {
                                     _changed = true;
                                   },
-                                  onTituloSubmitted: (txt) =>
-                                      _renomearCategoria(_linhas[i], txt),
+                                  onTituloSubmitted: (txt) => _renomearCategoria(_linhas[i], txt),
                                 ),
                               );
                             }),
@@ -502,7 +572,11 @@ class _LinhaSubeventos extends StatelessWidget {
               child: Focus(
                 onFocusChange: (hasFocus) {
                   if (!hasFocus) {
-                    onTituloSubmitted(linha.controller.text);
+                    final atual = linha.controller.text.trim();
+                    final salvo = linha.tituloSalvo.trim();
+                    if (atual.toLowerCase() != salvo.toLowerCase()) {
+                      onTituloSubmitted(atual);
+                    }
                   }
                 },
                 child: TextField(

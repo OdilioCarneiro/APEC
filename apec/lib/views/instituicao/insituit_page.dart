@@ -22,16 +22,20 @@ class _PerfilInstituicaoPageState extends State<PerfilInstituicaoPage> {
     _eventosFuture = ApiService.meusEventos();
   }
 
+  void _recarregarPerfil() {
+    setState(() => _perfilFuture = ApiService.minhaInstituicao());
+  }
+
   void _recarregarEventos() {
     setState(() => _eventosFuture = ApiService.meusEventos());
   }
 
   Future<void> _abrirCadastroEvento() async {
     await context.push('/cadastro_evento');
+    if (!mounted) return;
     _recarregarEventos();
   }
 
-  // <<< MAIS FÁCIL: sempre recarrega quando voltar do /evento
   Future<void> _abrirEventoInstit(Evento evento) async {
     await context.push(
       '/evento',
@@ -40,6 +44,27 @@ class _PerfilInstituicaoPageState extends State<PerfilInstituicaoPage> {
 
     if (!mounted) return;
     _recarregarEventos();
+  }
+
+  Future<void> _abrirEditarPerfil(Map<String, dynamic> inst) async {
+    final id = (inst['_id'] ?? inst['id'] ?? '').toString();
+
+    final result = await context.push<bool>(
+      '/login/edit_inst_page',
+      extra: {
+        'id': id,
+        'nome': (inst['nome'] ?? '').toString(),
+        'campus': (inst['campus'] ?? '').toString(),
+        'bio': (inst['bio'] ?? inst['descricao'] ?? '').toString(),
+        'email': (inst['email'] ?? '').toString(),
+        'imagemUrl': (inst['fotoUrl'] ?? inst['imagem'] ?? inst['foto'] ?? '').toString(),
+      },
+    );
+
+    if (!mounted) return;
+    if (result == true) {
+      _recarregarPerfil();
+    }
   }
 
   @override
@@ -51,56 +76,70 @@ class _PerfilInstituicaoPageState extends State<PerfilInstituicaoPage> {
     return Scaffold(
       backgroundColor: const Color(0xFFEFEFF4),
       body: SafeArea(
-        child: Container(
-          width: double.infinity,
-          height: double.infinity,
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                Color(0xFFFFE5E5),
-                Color(0xFFE5F7FF),
-                Color.fromARGB(255, 251, 255, 229),
+        child: FutureBuilder<Map<String, dynamic>>(
+          future: _perfilFuture,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState != ConnectionState.done) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (snapshot.hasError) {
+              return Center(child: Text('Erro perfil: ${snapshot.error}'));
+            }
+            if (!snapshot.hasData) {
+              return const Center(child: Text('Sem dados de perfil.'));
+            }
+
+            final inst = snapshot.data!;
+            final nome = (inst['nome'] ?? '').toString();
+            final campus = (inst['campus'] ?? '').toString();
+            final bio = (inst['bio'] ?? inst['descricao'] ?? '').toString();
+            final fotoUrl = (inst['fotoUrl'] ?? inst['imagem'] ?? inst['foto'])?.toString();
+
+            return Stack(
+              children: [
+                Container(
+                  width: double.infinity,
+                  height: double.infinity,
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        Color(0xFFFFE5E5),
+                        Color(0xFFE5F7FF),
+                        Color.fromARGB(255, 251, 255, 229),
+                      ],
+                    ),
+                  ),
+                  child: Center(
+                    child: SingleChildScrollView(
+                      padding: EdgeInsets.all(horizontalPadding),
+                      child: _PerfilCard(
+                        horizontalPadding: horizontalPadding,
+                        nome: nome,
+                        campus: campus,
+                        bio: bio,
+                        fotoUrl: fotoUrl,
+                        eventosFuture: _eventosFuture,
+                        onAddEvento: _abrirCadastroEvento,
+                        onOpenEvento: _abrirEventoInstit,
+                      ),
+                    ),
+                  ),
+                ),
+
+                // Botão editar (overlay)
+                Positioned(
+                  top: 40,
+                  right: 19,
+                  child: _CircleIconButton(
+                    icon: Icons.edit,
+                    onPressed: () => _abrirEditarPerfil(inst),
+                  ),
+                ),
               ],
-            ),
-          ),
-          child: Center(
-            child: SingleChildScrollView(
-              padding: EdgeInsets.all(horizontalPadding),
-              child: FutureBuilder<Map<String, dynamic>>(
-                future: _perfilFuture,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState != ConnectionState.done) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  if (snapshot.hasError) {
-                    return Center(child: Text('Erro perfil: ${snapshot.error}'));
-                  }
-                  if (!snapshot.hasData) {
-                    return const Center(child: Text('Sem dados de perfil.'));
-                  }
-
-                  final inst = snapshot.data!;
-                  final nome = (inst['nome'] ?? '').toString();
-                  final campus = (inst['campus'] ?? '').toString();
-                  final bio = (inst['bio'] ?? inst['descricao'] ?? '').toString();
-                  final fotoUrl = (inst['fotoUrl'] ?? inst['imagem'])?.toString();
-
-                  return _PerfilCard(
-                    horizontalPadding: horizontalPadding,
-                    nome: nome,
-                    campus: campus,
-                    bio: bio,
-                    fotoUrl: fotoUrl,
-                    eventosFuture: _eventosFuture,
-                    onAddEvento: _abrirCadastroEvento,
-                    onOpenEvento: _abrirEventoInstit, // <<< passa pro filho
-                  );
-                },
-              ),
-            ),
-          ),
+            );
+          },
         ),
       ),
     );
@@ -134,13 +173,10 @@ class _PerfilCard extends StatelessWidget {
     final screenWidth = size.width;
     final screenHeight = size.height;
 
-    final cardWidth =
-        (screenWidth - 2 * horizontalPadding).clamp(320.0, 500.0);
+    final cardWidth = (screenWidth - 2 * horizontalPadding).clamp(320.0, 500.0);
 
     return ConstrainedBox(
-      constraints: BoxConstraints(
-        minHeight: screenHeight * 0.80,
-      ),
+      constraints: BoxConstraints(minHeight: screenHeight * 0.80),
       child: Container(
         width: cardWidth,
         padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
@@ -192,7 +228,7 @@ class _PerfilCard extends StatelessWidget {
             _SecaoEventos(
               eventosFuture: eventosFuture,
               onAddEvento: onAddEvento,
-              onOpenEvento: onOpenEvento, // <<< repassa pro neto
+              onOpenEvento: onOpenEvento,
             ),
           ],
         ),
@@ -367,6 +403,31 @@ class _AddCard extends StatelessWidget {
             child: const Icon(Icons.add, size: 28, color: Colors.black54),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _CircleIconButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onPressed;
+
+  const _CircleIconButton({
+    required this.icon,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white70,
+        borderRadius: BorderRadius.circular(800),
+        border: Border.all(color: const Color(0x33263238), width: 1),
+      ),
+      child: IconButton(
+        icon: Icon(icon),
+        onPressed: onPressed,
       ),
     );
   }
