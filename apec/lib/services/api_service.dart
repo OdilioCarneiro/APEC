@@ -183,6 +183,16 @@ class ApiService {
     _throwHttp(response, 'Erro ao logar');
   }
 
+  static Future<void> deletarInstituicao(String id) async {
+  final response = await http
+      .delete(_uri('/instituicoes/$id'))
+      .timeout(_timeout);
+
+  if (response.statusCode == 200 || response.statusCode == 204) return;
+  _throwHttp(response, 'Erro ao deletar instituição');
+}
+
+
   static Future<Map<String, dynamic>> obterInstituicaoPorId(String id) async {
     final response = await http.get(_uri('/instituicoes/$id')).timeout(_timeout);
 

@@ -118,8 +118,21 @@ exports.atualizarInstituicao = async (req, res) => {
 exports.deletarInstituicao = async (req, res) => {
   try {
     const { id } = req.params;
+
     const inst = await Instituicao.findByIdAndDelete(id);
     if (!inst) return res.status(404).json({ error: 'Instituição não encontrada' });
+
+    // apaga TODOS os eventos dessa instituição
+    const eventos = await Evento.find({ instituicaoId: id }).select('_id').lean();
+    const eventoIds = eventos.map((e) => e._id);
+
+    if (eventoIds.isNotEmpty) {
+      // apaga subeventos desses eventos
+      await SubEvento.deleteMany({ eventoPaiId: { $in: eventoIds } });
+      // apaga eventos
+      await Evento.deleteMany({ _id: { $in: eventoIds } });
+    }
+
     return res.status(204).send();
   } catch (e) {
     return res.status(500).json({ error: String(e) });

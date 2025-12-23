@@ -39,6 +39,7 @@ class _EditarInstPageState extends State<EditarInstPage> {
   File? _imageFile;
   final ImagePicker _picker = ImagePicker();
   bool _loading = false;
+  bool _deleting = false;
 
   @override
   void initState() {
@@ -99,26 +100,26 @@ class _EditarInstPageState extends State<EditarInstPage> {
         borderRadius: BorderRadius.circular(10),
         borderSide: BorderSide(color: Colors.grey.shade400, width: 1),
       ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(
+      focusedBorder: const OutlineInputBorder(
+        borderRadius: BorderRadius.all(Radius.circular(10)),
+        borderSide: BorderSide(
           color: Color.fromARGB(255, 81, 191, 255),
           width: 2,
         ),
       ),
-      errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: Colors.red, width: 1),
+      errorBorder: const OutlineInputBorder(
+        borderRadius: BorderRadius.all(Radius.circular(10)),
+        borderSide: BorderSide(color: Colors.red, width: 1),
       ),
-      focusedErrorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: Colors.red, width: 2),
+      focusedErrorBorder: const OutlineInputBorder(
+        borderRadius: BorderRadius.all(Radius.circular(10)),
+        borderSide: BorderSide(color: Colors.red, width: 2),
       ),
     );
   }
 
   Future<void> _salvar() async {
-    if (_loading) return;
+    if (_loading || _deleting) return;
     if (!_formKey.currentState!.validate()) return;
 
     if ((_senhaController.text.isNotEmpty || _confirmarSenhaController.text.isNotEmpty) &&
@@ -142,7 +143,6 @@ class _EditarInstPageState extends State<EditarInstPage> {
         'email': _emailController.text.trim(),
       };
 
-      // só manda senha se digitou uma nova
       if (_senhaController.text.trim().isNotEmpty) {
         dados['senha'] = _senhaController.text;
       }
@@ -160,6 +160,48 @@ class _EditarInstPageState extends State<EditarInstPage> {
       _snack('Erro ao salvar: $e', bg: Colors.red);
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _confirmarExcluir() async {
+    if (_deleting || _instId == null || _instId!.isEmpty) return;
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Excluir instituição?'),
+        content: const Text('Essa ação não pode ser desfeita. Todos os dados serão removidos.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text(
+              'Excluir',
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    try {
+      setState(() => _deleting = true);
+
+      await ApiService.deletarInstituicao(_instId!);
+
+      if (!mounted) return;
+      _snack('Instituição excluída.', bg: Colors.red);
+      // fecha a tela de edição, e quem chamou pode tratar logout/navegação
+      context.pop(true);
+    } catch (e) {
+      _snack('Erro ao excluir: $e', bg: Colors.red);
+    } finally {
+      if (mounted) setState(() => _deleting = false);
     }
   }
 
@@ -259,9 +301,9 @@ class _EditarInstPageState extends State<EditarInstPage> {
     const double maxFormWidth = 500;
     final double horizontalPadding = screenWidth * 0.06;
 
-    return Material(
-      color: Colors.transparent,
-      child: SafeArea(
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: SafeArea(
         bottom: false,
         child: Container(
           decoration: BoxDecoration(gradient: backgroundSla),
@@ -278,121 +320,147 @@ class _EditarInstPageState extends State<EditarInstPage> {
                 borderRadius: BorderRadius.circular(12),
                 child: Container(
                   color: Colors.white,
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
-                    child: Form(
-                      key: _formKey,
-                      child: Column(
-                        children: [
-                          const SizedBox(height: 6),
-                          _buildProfileAvatar(),
-                          const SizedBox(height: 16),
+                  child: Stack(
+                    children: [
+                      SingleChildScrollView(
+                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
+                        child: Form(
+                          key: _formKey,
+                          child: Column(
+                            children: [
+                              const SizedBox(height: 6),
+                              _buildProfileAvatar(),
+                              const SizedBox(height: 16),
 
-                          TextFormField(
-                            controller: _nomeInstController,
-                            decoration: _fieldDecoration('Digite o nome da instituição'),
-                            validator: (v) => (v == null || v.trim().isEmpty)
-                                ? 'Informe o nome da instituição.'
-                                : null,
-                          ),
-                          const SizedBox(height: 10),
-
-                          TextFormField(
-                            controller: _campusController,
-                            decoration: _fieldDecoration('Digite o campus/região da sua instituição'),
-                          ),
-                          const SizedBox(height: 10),
-
-                          _buildBioDotted(),
-                          const SizedBox(height: 10),
-
-                          TextFormField(
-                            controller: _emailController,
-                            keyboardType: TextInputType.emailAddress,
-                            decoration: _fieldDecoration('Digite o email da instituição'),
-                            validator: (v) {
-                              if (v == null || v.trim().isEmpty) return 'Informe o email.';
-                              if (!v.contains('@')) return 'Email inválido.';
-                              return null;
-                            },
-                          ),
-                          const SizedBox(height: 10),
-
-                          TextFormField(
-                            controller: _senhaController,
-                            obscureText: true,
-                            decoration: _fieldDecoration('Nova senha (opcional)'),
-                          ),
-                          const SizedBox(height: 10),
-
-                          TextFormField(
-                            controller: _confirmarSenhaController,
-                            obscureText: true,
-                            decoration: _fieldDecoration('Confirmar nova senha (opcional)'),
-                          ),
-                          const SizedBox(height: 18),
-
-                          SizedBox(
-                            width: double.infinity,
-                            height: 46,
-                            child: ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color.fromARGB(255, 81, 191, 255),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(50),
-                                  side: const BorderSide(
-                                    color: Color.fromARGB(255, 69, 178, 241),
-                                    width: 2,
-                                  ),
-                                ),
+                              TextFormField(
+                                controller: _nomeInstController,
+                                decoration: _fieldDecoration('Digite o nome da instituição'),
+                                validator: (v) => (v == null || v.trim().isEmpty)
+                                    ? 'Informe o nome da instituição.'
+                                    : null,
                               ),
-                              onPressed: _loading ? null : _salvar,
-                              child: _loading
-                                  ? const SizedBox(
-                                      height: 18,
-                                      width: 18,
-                                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                                    )
-                                  : const Text(
-                                      'Salvar alterações',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
+                              const SizedBox(height: 10),
+
+                              TextFormField(
+                                controller: _campusController,
+                                decoration: _fieldDecoration('Digite o campus/região da sua instituição'),
+                              ),
+                              const SizedBox(height: 10),
+
+                              _buildBioDotted(),
+                              const SizedBox(height: 10),
+
+                              TextFormField(
+                                controller: _emailController,
+                                keyboardType: TextInputType.emailAddress,
+                                decoration: _fieldDecoration('Digite o email da instituição'),
+                                validator: (v) {
+                                  if (v == null || v.trim().isEmpty) return 'Informe o email.';
+                                  if (!v.contains('@')) return 'Email inválido.';
+                                  return null;
+                                },
+                              ),
+                              const SizedBox(height: 10),
+
+                              TextFormField(
+                                controller: _senhaController,
+                                obscureText: true,
+                                decoration: _fieldDecoration('Nova senha (opcional)'),
+                              ),
+                              const SizedBox(height: 10),
+
+                              TextFormField(
+                                controller: _confirmarSenhaController,
+                                obscureText: true,
+                                decoration: _fieldDecoration('Confirmar nova senha (opcional)'),
+                              ),
+                              const SizedBox(height: 18),
+
+                              SizedBox(
+                                width: double.infinity,
+                                height: 46,
+                                child: ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color.fromARGB(255, 81, 191, 255),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(50),
+                                      side: const BorderSide(
+                                        color: Color.fromARGB(255, 69, 178, 241),
+                                        width: 2,
                                       ),
                                     ),
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-
-                          SizedBox(
-                            width: double.infinity,
-                            height: 46,
-                            child: ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color.fromARGB(255, 255, 81, 81),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(50),
-                                  side: const BorderSide(
-                                    color: Color.fromARGB(255, 241, 69, 69),
-                                    width: 2,
                                   ),
+                                  onPressed: _loading || _deleting ? null : _salvar,
+                                  child: _loading
+                                      ? const SizedBox(
+                                          height: 18,
+                                          width: 18,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: Colors.white,
+                                          ),
+                                        )
+                                      : const Text(
+                                          'Salvar alterações',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
                                 ),
                               ),
-                              onPressed: () => context.pop(false),
-                              child: const Text(
-                                'Cancelar',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
+                              const SizedBox(height: 10),
+
+                              SizedBox(
+                                width: double.infinity,
+                                height: 46,
+                                child: ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color.fromARGB(255, 255, 81, 81),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(50),
+                                      side: const BorderSide(
+                                        color: Color.fromARGB(255, 241, 69, 69),
+                                        width: 2,
+                                      ),
+                                    ),
+                                  ),
+                                  onPressed: _deleting || _instId == null ? null : _confirmarExcluir,
+                                  child: _deleting
+                                      ? const SizedBox(
+                                          height: 18,
+                                          width: 18,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: Colors.white,
+                                          ),
+                                        )
+                                      : const Text(
+                                          'Excluir instituição',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
                                 ),
                               ),
-                            ),
+                            ],
                           ),
-                        ],
+                        ),
                       ),
-                    ),
+
+                      // Botão de voltar (seta) no canto superior esquerdo
+                      Positioned(
+                        top: 8,
+                        left: 8,
+                        child: IconButton(
+                          icon: const Icon(Icons.arrow_back),
+                          onPressed: () => context.pop(false),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),

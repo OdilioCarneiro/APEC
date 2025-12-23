@@ -12,28 +12,74 @@ class PerfilInstituicaoPage extends StatefulWidget {
 }
 
 class _PerfilInstituicaoPageState extends State<PerfilInstituicaoPage> {
-  late Future<Map<String, dynamic>> _perfilFuture;
-  late Future<List<dynamic>> _eventosFuture;
+  Map<String, dynamic>? _inst;
+  List<dynamic> _eventos = [];
+  bool _loadingPerfil = true;
+  bool _loadingEventos = true;
+  String? _erroPerfil;
+  String? _erroEventos;
 
   @override
   void initState() {
     super.initState();
-    _perfilFuture = ApiService.minhaInstituicao();
-    _eventosFuture = ApiService.meusEventos();
+    _carregarTudo();
   }
 
-  void _recarregarPerfil() {
-    setState(() => _perfilFuture = ApiService.minhaInstituicao());
+  Future<void> _carregarTudo() async {
+    await Future.wait([
+      _carregarPerfil(),
+      _carregarEventos(),
+    ]);
   }
 
-  void _recarregarEventos() {
-    setState(() => _eventosFuture = ApiService.meusEventos());
+  Future<void> _carregarPerfil() async {
+    setState(() {
+      _loadingPerfil = true;
+      _erroPerfil = null;
+    });
+
+    try {
+      final json = await ApiService.minhaInstituicao();
+      if (!mounted) return;
+      setState(() {
+        _inst = json;
+        _loadingPerfil = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _erroPerfil = e.toString();
+        _loadingPerfil = false;
+      });
+    }
+  }
+
+  Future<void> _carregarEventos() async {
+    setState(() {
+      _loadingEventos = true;
+      _erroEventos = null;
+    });
+
+    try {
+      final list = await ApiService.meusEventos();
+      if (!mounted) return;
+      setState(() {
+        _eventos = list;
+        _loadingEventos = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _erroEventos = e.toString();
+        _loadingEventos = false;
+      });
+    }
   }
 
   Future<void> _abrirCadastroEvento() async {
     await context.push('/cadastro_evento');
     if (!mounted) return;
-    _recarregarEventos();
+    await _carregarEventos();
   }
 
   Future<void> _abrirEventoInstit(Evento evento) async {
@@ -41,15 +87,17 @@ class _PerfilInstituicaoPageState extends State<PerfilInstituicaoPage> {
       '/evento',
       extra: {'evento': evento, 'isDono': true},
     );
-
     if (!mounted) return;
-    _recarregarEventos();
+    await _carregarEventos();
   }
 
-  Future<void> _abrirEditarPerfil(Map<String, dynamic> inst) async {
+  Future<void> _abrirEditarPerfil() async {
+    if (_inst == null) return;
+
+    final inst = _inst!;
     final id = (inst['_id'] ?? inst['id'] ?? '').toString();
 
-    final result = await context.push<bool>(
+    await context.push<bool>(
       '/login/edit_inst_page',
       extra: {
         'id': id,
@@ -62,9 +110,8 @@ class _PerfilInstituicaoPageState extends State<PerfilInstituicaoPage> {
     );
 
     if (!mounted) return;
-    if (result == true) {
-      _recarregarPerfil();
-    }
+    // sempre recarrega do backend assim que voltar
+    await _carregarPerfil();
   }
 
   @override
@@ -73,73 +120,79 @@ class _PerfilInstituicaoPageState extends State<PerfilInstituicaoPage> {
     final screenWidth = size.width;
     final horizontalPadding = (screenWidth * 0.05).clamp(16.0, 24.0);
 
+    if (_loadingPerfil) {
+      return const Scaffold(
+        backgroundColor: Color(0xFFEFEFF4),
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_erroPerfil != null) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFEFEFF4),
+        body: Center(child: Text('Erro perfil: $_erroPerfil')),
+      );
+    }
+
+    if (_inst == null) {
+      return const Scaffold(
+        backgroundColor: Color(0xFFEFEFF4),
+        body: Center(child: Text('Sem dados de perfil.')),
+      );
+    }
+
+    final inst = _inst!;
+    final nome = (inst['nome'] ?? '').toString();
+    final campus = (inst['campus'] ?? '').toString();
+    final bio = (inst['bio'] ?? inst['descricao'] ?? '').toString();
+    final fotoUrl = (inst['fotoUrl'] ?? inst['imagem'] ?? inst['foto'])?.toString();
+
     return Scaffold(
       backgroundColor: const Color(0xFFEFEFF4),
       body: SafeArea(
-        child: FutureBuilder<Map<String, dynamic>>(
-          future: _perfilFuture,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState != ConnectionState.done) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            if (snapshot.hasError) {
-              return Center(child: Text('Erro perfil: ${snapshot.error}'));
-            }
-            if (!snapshot.hasData) {
-              return const Center(child: Text('Sem dados de perfil.'));
-            }
-
-            final inst = snapshot.data!;
-            final nome = (inst['nome'] ?? '').toString();
-            final campus = (inst['campus'] ?? '').toString();
-            final bio = (inst['bio'] ?? inst['descricao'] ?? '').toString();
-            final fotoUrl = (inst['fotoUrl'] ?? inst['imagem'] ?? inst['foto'])?.toString();
-
-            return Stack(
-              children: [
-                Container(
-                  width: double.infinity,
-                  height: double.infinity,
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        Color(0xFFFFE5E5),
-                        Color(0xFFE5F7FF),
-                        Color.fromARGB(255, 251, 255, 229),
-                      ],
-                    ),
-                  ),
-                  child: Center(
-                    child: SingleChildScrollView(
-                      padding: EdgeInsets.all(horizontalPadding),
-                      child: _PerfilCard(
-                        horizontalPadding: horizontalPadding,
-                        nome: nome,
-                        campus: campus,
-                        bio: bio,
-                        fotoUrl: fotoUrl,
-                        eventosFuture: _eventosFuture,
-                        onAddEvento: _abrirCadastroEvento,
-                        onOpenEvento: _abrirEventoInstit,
-                      ),
-                    ),
+        child: Stack(
+          children: [
+            Container(
+              width: double.infinity,
+              height: double.infinity,
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Color(0xFFFFE5E5),
+                    Color(0xFFE5F7FF),
+                    Color.fromARGB(255, 251, 255, 229),
+                  ],
+                ),
+              ),
+              child: Center(
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.all(horizontalPadding),
+                  child: _PerfilCard(
+                    horizontalPadding: horizontalPadding,
+                    nome: nome,
+                    campus: campus,
+                    bio: bio,
+                    fotoUrl: fotoUrl,
+                    loadingEventos: _loadingEventos,
+                    erroEventos: _erroEventos,
+                    eventos: _eventos,
+                    onAddEvento: _abrirCadastroEvento,
+                    onOpenEvento: _abrirEventoInstit,
                   ),
                 ),
-
-                // Botão editar (overlay)
-                Positioned(
-                  top: 40,
-                  right: 19,
-                  child: _CircleIconButton(
-                    icon: Icons.edit,
-                    onPressed: () => _abrirEditarPerfil(inst),
-                  ),
-                ),
-              ],
-            );
-          },
+              ),
+            ),
+            Positioned(
+              top: 40,
+              right: 19,
+              child: _CircleIconButton(
+                icon: Icons.edit,
+                onPressed: _abrirEditarPerfil,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -152,7 +205,10 @@ class _PerfilCard extends StatelessWidget {
   final String campus;
   final String bio;
   final String? fotoUrl;
-  final Future<List<dynamic>> eventosFuture;
+
+  final bool loadingEventos;
+  final String? erroEventos;
+  final List<dynamic> eventos;
   final VoidCallback onAddEvento;
   final void Function(Evento evento) onOpenEvento;
 
@@ -162,7 +218,9 @@ class _PerfilCard extends StatelessWidget {
     required this.campus,
     required this.bio,
     required this.fotoUrl,
-    required this.eventosFuture,
+    required this.loadingEventos,
+    required this.erroEventos,
+    required this.eventos,
     required this.onAddEvento,
     required this.onOpenEvento,
   });
@@ -226,7 +284,9 @@ class _PerfilCard extends StatelessWidget {
             ),
             const SizedBox(height: 24),
             _SecaoEventos(
-              eventosFuture: eventosFuture,
+              loading: loadingEventos,
+              erro: erroEventos,
+              eventos: eventos,
               onAddEvento: onAddEvento,
               onOpenEvento: onOpenEvento,
             ),
@@ -298,18 +358,36 @@ class _AvatarInstituicaoGradient extends StatelessWidget {
 }
 
 class _SecaoEventos extends StatelessWidget {
-  final Future<List<dynamic>> eventosFuture;
+  final bool loading;
+  final String? erro;
+  final List<dynamic> eventos;
   final VoidCallback onAddEvento;
   final void Function(Evento evento) onOpenEvento;
 
   const _SecaoEventos({
-    required this.eventosFuture,
+    required this.loading,
+    required this.erro,
+    required this.eventos,
     required this.onAddEvento,
     required this.onOpenEvento,
   });
 
   @override
   Widget build(BuildContext context) {
+    if (loading) {
+      return const SizedBox(
+        height: 140,
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (erro != null) {
+      return SizedBox(
+        height: 140,
+        child: Center(child: Text('Erro eventos: $erro')),
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -324,46 +402,32 @@ class _SecaoEventos extends StatelessWidget {
         const SizedBox(height: 8),
         SizedBox(
           height: 140,
-          child: FutureBuilder<List<dynamic>>(
-            future: eventosFuture,
-            builder: (context, snapshot) {
-              if (snapshot.connectionState != ConnectionState.done) {
-                return const Center(child: CircularProgressIndicator());
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: 1 + eventos.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            itemBuilder: (context, index) {
+              if (index == 0) return _AddCard(onTap: onAddEvento);
+
+              final raw = eventos[index - 1];
+              if (raw is! Map<String, dynamic>) {
+                return const SizedBox(
+                  width: 260,
+                  child: Center(child: Text('Evento inválido')),
+                );
               }
-              if (snapshot.hasError) {
-                return Center(child: Text('Erro eventos: ${snapshot.error}'));
-              }
 
-              final eventos = snapshot.data ?? [];
+              final evento = Evento.fromAPI(raw);
 
-              return ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: 1 + eventos.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 12),
-                itemBuilder: (context, index) {
-                  if (index == 0) return _AddCard(onTap: onAddEvento);
-
-                  final raw = eventos[index - 1];
-                  if (raw is! Map<String, dynamic>) {
-                    return const SizedBox(
-                      width: 260,
-                      child: Center(child: Text('Evento inválido')),
-                    );
-                  }
-
-                  final evento = Evento.fromAPI(raw);
-
-                  return InkWell(
-                    onTap: () => onOpenEvento(evento),
-                    child: SizedBox(
-                      width: 305,
-                      child: EventCardComponent(
-                        evento: evento,
-                        isDono: true,
-                      ),
-                    ),
-                  );
-                },
+              return InkWell(
+                onTap: () => onOpenEvento(evento),
+                child: SizedBox(
+                  width: 305,
+                  child: EventCardComponent(
+                    evento: evento,
+                    isDono: true,
+                  ),
+                ),
               );
             },
           ),
