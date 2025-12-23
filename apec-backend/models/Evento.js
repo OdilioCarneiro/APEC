@@ -19,10 +19,12 @@ const EventoSchema = new mongoose.Schema(
     },
 
     // Categorias de subeventos (lista de títulos)
+    // models/Evento.js
     categoriasSubeventos: {
       type: [String],
-      default: ['Subeventos'],
+      default: ['Nova categoria'],
     },
+
 
 
     categoriaEsportiva: { type: String, default: '' },

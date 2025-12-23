@@ -107,15 +107,12 @@ exports.listarEventosPorInstituicao = async (req, res) => {
   }
 };
 
-// RENOMEAR categoria (atualiza evento + subeventos)
-// controllers/eventoController.js
 
+// controllers/eventoController.js
 exports.renomearCategoriaSubeventos = async (req, res) => {
   try {
     const { id } = req.params;
     let { antiga, nova } = req.body;
-
-    console.log('RENAME REQUEST (ATOMIC):', { id, antiga, nova });
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({ message: 'ID inválido' });
@@ -128,24 +125,23 @@ exports.renomearCategoriaSubeventos = async (req, res) => {
       return res.status(400).json({ message: 'Antiga e nova são obrigatórias' });
     }
 
-    // 1. Busca o evento atual
     const eventoOriginal = await Evento.findById(id);
     if (!eventoOriginal) {
       return res.status(404).json({ message: 'Evento não encontrado' });
     }
 
-    // Calcula novo array de categorias
     const catsAntigas = (eventoOriginal.categoriasSubeventos || [])
-        .map(c => (c || '').trim());
+      .map((c) => (c || '').toString().trim())
+      .filter((c) => c.isNotEmpty);
 
-    const catsNovas = catsAntigas.map(c =>
+    const catsRenomeadas = catsAntigas.map((c) =>
       c.toLowerCase() === antiga.toLowerCase() ? nova : c
     );
 
-    // Remove duplicatas e garante "Subeventos"
-    const unique = ['Subeventos'];
-    const seen = new Set(['subeventos']);
-    for (const c of catsNovas) {
+    // Remove duplicatas (case-insensitive) e garante pelo menos "Nova categoria"
+    const seen = new Set();
+    const unique = [];
+    for (const c of catsRenomeadas) {
       if (!c) continue;
       const k = c.toLowerCase();
       if (!seen.has(k)) {
@@ -153,28 +149,24 @@ exports.renomearCategoriaSubeventos = async (req, res) => {
         unique.push(c);
       }
     }
+    if (unique.length === 0) unique.push('Nova categoria');
 
-    // 2. Atualiza o evento ATOMICAMENTE (sem .save(), evitando VersionError)
     const eventoAtualizado = await Evento.findOneAndUpdate(
       { _id: id },
       { $set: { categoriasSubeventos: unique } },
       { new: true }
     ).populate('instituicaoId', 'nome fotoUrl');
 
-    // 3. Migra subeventos daquela categoria
-    const resultSubs = await SubEvento.updateMany(
+    await SubEvento.updateMany(
       { eventoPaiId: id, categoria: antiga },
       { $set: { categoria: nova } }
     );
-    console.log('Subeventos migrados:', resultSubs);
 
     return res.json(eventoAtualizado);
-
   } catch (err) {
-    console.error('ERRO RENAME:', err);
     return res.status(500).json({
       message: 'Erro ao renomear categoria',
-      error: err.message
+      error: err.message,
     });
   }
 };

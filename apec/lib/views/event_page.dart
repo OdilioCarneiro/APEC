@@ -14,6 +14,8 @@ class EventPage extends StatefulWidget {
 }
 
 class _EventPageState extends State<EventPage> {
+  static const String _categoriaPadrao = 'Nova categoria';
+
   late Future<_EventPageData> _future;
 
   @override
@@ -132,35 +134,38 @@ class _EventPageState extends State<EventPage> {
 
         // Mapa categoria -> lista
         final Map<String, List<SubEvento>> grupos = {};
-        grupos['Subeventos'] = [];
 
-        // Categorias cadastradas no Evento (mesmo vazias).
-        // Aqui estava o bug: cat.titulo não existe se cat for String.
-        final seen = <String>{'subeventos'};
-        for (final cat in evento.categoriasSubeventos) {
-          final titulo = cat.toString().trim();
-          if (titulo.isEmpty) continue;
-
-          final key = titulo.toLowerCase();
-          if (seen.add(key)) {
-            grupos.putIfAbsent(titulo, () => []);
+        // 1) Categorias cadastradas no Evento (mesmo vazias).
+        // Se vier vazio, cria só uma categoria padrão.
+        final rawCats = evento.categoriasSubeventos;
+        if (rawCats.isEmpty) {
+          grupos[_categoriaPadrao] = [];
+        } else {
+          final seen = <String>{};
+          for (final cat in rawCats) {
+            final titulo = cat.toString().trim();
+            if (titulo.isEmpty) continue;
+            final key = titulo.toLowerCase();
+            if (seen.add(key)) {
+              grupos.putIfAbsent(titulo, () => []);
+            }
+          }
+          if (grupos.isEmpty) {
+            grupos[_categoriaPadrao] = [];
           }
         }
 
-        // Encaixa subeventos na categoria
+        // 2) Encaixa subeventos na categoria
         for (final s in subs) {
-          final titulo = (s.categoria ?? '').trim().isEmpty ? 'Subeventos' : s.categoria!.trim();
+          final cat = (s.categoria ?? '').trim();
+          final titulo = cat.isEmpty ? _categoriaPadrao : cat;
           grupos.putIfAbsent(titulo, () => []);
           grupos[titulo]!.add(s);
         }
 
-        // Ordenação: Subeventos primeiro, depois alfabético
+        // Ordenação alfabética simples
         final categoriasOrdenadas = grupos.keys.toList()
-          ..sort((a, b) {
-            if (a.toLowerCase() == 'subeventos') return -1;
-            if (b.toLowerCase() == 'subeventos') return 1;
-            return a.toLowerCase().compareTo(b.toLowerCase());
-          });
+          ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
 
         return Scaffold(
           body: Container(
@@ -253,7 +258,7 @@ class _LinhaSubeventosReadOnly extends StatelessWidget {
               border: Border.all(color: const Color(0x33263238), width: 1),
             ),
             child: Text(
-              'Sem subeventos nesta categoria.',
+              'Sem cards nesta categoria.',
               style: TextStyle(color: Colors.grey.shade700, fontSize: 12),
             ),
           )
@@ -275,6 +280,8 @@ class _LinhaSubeventosReadOnly extends StatelessWidget {
   }
 }
 
+// ===== Componentes do topo (mantidos) =====
+
 class EventBanner extends StatelessWidget {
   final String imagem;
   const EventBanner({super.key, required this.imagem});
@@ -291,9 +298,7 @@ class EventBanner extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          isNetwork
-              ? Image.network(imagem, fit: BoxFit.cover)
-              : Image.asset(imagem, fit: BoxFit.cover),
+          isNetwork ? Image.network(imagem, fit: BoxFit.cover) : Image.asset(imagem, fit: BoxFit.cover),
           Container(
             decoration: const BoxDecoration(
               gradient: LinearGradient(

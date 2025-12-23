@@ -4,8 +4,8 @@ const SubEventoSchema = new mongoose.Schema(
   {
     nome: { type: String, required: true, trim: true },
 
-    // Categoria da row (ESSENCIAL pro fluxo)
-    categoria: { type: String, trim: true, default: 'Subeventos' },
+  categoria: { type: String, trim: true, default: 'Nova categoria' },
+
 
     data: { type: String, required: true },     // "YYYY-MM-DD"
     horario: { type: String, required: true },  // "HH:mm"

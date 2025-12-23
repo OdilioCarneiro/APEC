@@ -5,11 +5,8 @@ import 'package:go_router/go_router.dart';
 
 import 'package:apec/pages/data/model.dart';
 import 'package:apec/services/api_service.dart';
-
-// ÚNICO card de subevento usado aqui:
 import 'package:apec/pages/components/card_subevento.dart';
-
-import 'package:apec/views/event_page.dart'; // EventBanner, EventTitle, EventDetailsRow, EventDescription
+import 'package:apec/views/event_page.dart';
 
 class EventosPageInstit extends StatefulWidget {
   final Evento evento;
@@ -29,9 +26,7 @@ class _EventosPageInstitState extends State<EventosPageInstit> {
   Timer? _debounceSalvarCategorias;
   bool _savingCategorias = false;
 
-  final List<_SubeventoLinha> _linhas = [
-    _SubeventoLinha(titulo: 'Subeventos'),
-  ];
+  final List<_SubeventoLinha> _linhas = [];
 
   @override
   void initState() {
@@ -74,35 +69,37 @@ class _EventosPageInstitState extends State<EventosPageInstit> {
       setState(() {
         _evento = eventoAtualizado;
 
+        // limpa linhas antigas
         for (final l in _linhas) {
           l.controller.dispose();
         }
         _linhas.clear();
 
-        // base fixa
-        _linhas.add(_SubeventoLinha(titulo: 'Subeventos'));
-
-        // categorias do evento (mesmo vazias)
+        // 1) monta TODAS as linhas a partir de categoriasSubeventos
         final rawCats = _evento.categoriasSubeventos;
-        for (final item in rawCats) {
-          final t = item.toString().trim();
-          if (t.isNotEmpty && t.toLowerCase() != 'subeventos') {
+        if (rawCats.isEmpty) {
+          // se o evento ainda não tem nada, cria uma row padrão
+          _linhas.add(_SubeventoLinha(titulo: 'Nova categoria'));
+        } else {
+          for (final item in rawCats) {
+            final t = item.toString().trim();
+            if (t.isEmpty) continue;
             if (_indexLinhaPorTitulo(t) == -1) {
               _linhas.add(_SubeventoLinha(titulo: t));
             }
           }
         }
 
-        // agrupa subeventos nas linhas (NÃO cria linha nova se vier categoria não listada)
+        // 2) encaixa subeventos nas linhas existentes (sem criar linha nova)
         for (final s in subs) {
-          final cat = (s.categoria ?? '').trim().isEmpty
-              ? 'Subeventos'
-              : s.categoria!.trim();
-          final idx = _indexLinhaPorTitulo(cat);
+          final cat = (s.categoria ?? '').trim();
+          final titulo = cat.isEmpty ? 'Nova categoria' : cat;
+          final idx = _indexLinhaPorTitulo(titulo);
 
           if (idx == -1) {
-            // se vier categoria “antiga” que não existe mais no array do evento,
-            // não cria nova row: joga na base.
+            if (_linhas.isEmpty) {
+              _linhas.add(_SubeventoLinha(titulo: titulo));
+            }
             _linhas[0].subeventos.add(s);
           } else {
             _linhas[idx].subeventos.add(s);
@@ -110,7 +107,7 @@ class _EventosPageInstitState extends State<EventosPageInstit> {
         }
 
         if (_linhas.isEmpty) {
-          _linhas.add(_SubeventoLinha(titulo: 'Subeventos'));
+          _linhas.add(_SubeventoLinha(titulo: 'Nova categoria'));
         }
       });
     } finally {
@@ -143,9 +140,7 @@ class _EventosPageInstitState extends State<EventosPageInstit> {
         .where((t) => t.isNotEmpty)
         .toList();
 
-    titulos.removeWhere((t) => t.toLowerCase() == 'subeventos');
-    titulos.insert(0, 'Subeventos');
-
+    // NÃO força mais "Subeventos" em lugar nenhum
     final seen = <String>{};
     final unique = <String>[];
     for (final t in titulos) {
@@ -197,13 +192,11 @@ class _EventosPageInstitState extends State<EventosPageInstit> {
       _changed = true;
     });
 
-    // cria a row no Evento (persistência) sem mexer em subeventos
     unawaited(_salvarCategoriasAgora());
   }
 
   void _removerLinha(int index) {
     if (_linhas.length <= 1) return;
-    if (index == 0) return;
 
     setState(() {
       _linhas[index].controller.dispose();
@@ -424,11 +417,11 @@ class _EventosPageInstitState extends State<EventosPageInstit> {
                                 padding: const EdgeInsets.only(bottom: 14),
                                 child: _LinhaSubeventos(
                                   linha: _linhas[i],
-                                  canDelete: _linhas.length > 1 && i != 0,
+                                  canDelete: _linhas.length > 1,
                                   onTapAdd: () => _adicionarSubeventoNaLinha(i),
                                   onDelete: () => _removerLinha(i),
                                   onTituloChanged: (_) {
-                                    _changed = true; // não salva/renomeia aqui
+                                    _changed = true;
                                   },
                                   onTituloSubmitted: (txt) =>
                                       _renomearCategoria(_linhas[i], txt),
