@@ -1,14 +1,12 @@
 const mongoose = require('mongoose');
 const Evento = require('../models/Evento');
+
 const SubEvento = require('../models/Subevento');
- // ou '../models/Subevento' conforme o nome real do arquivo
 
-
-// Listar todos os eventos (já trazendo instituição)
 exports.listarEventos = async (req, res) => {
   try {
     const eventos = await Evento.find()
-      .populate('instituicaoId', 'nome fotoUrl')
+      .populate('instituicaoId', 'nome imagem')
       .sort({ data: 1 });
 
     return res.json(eventos);
@@ -17,11 +15,10 @@ exports.listarEventos = async (req, res) => {
   }
 };
 
-// Obter evento por ID
 exports.obterEvento = async (req, res) => {
   try {
     const evento = await Evento.findById(req.params.id)
-      .populate('instituicaoId', 'nome fotoUrl');
+      .populate('instituicaoId', 'nome imagem');
 
     if (!evento) return res.status(404).json({ erro: 'Evento não encontrado' });
     return res.json(evento);
@@ -30,7 +27,6 @@ exports.obterEvento = async (req, res) => {
   }
 };
 
-// Criar evento (imagem opcional)
 exports.criarEvento = async (req, res) => {
   try {
     const dados = { ...req.body };
@@ -48,7 +44,7 @@ exports.criarEvento = async (req, res) => {
     await novoEvento.save();
 
     const eventoPopulado = await Evento.findById(novoEvento._id)
-      .populate('instituicaoId', 'nome fotoUrl');
+      .populate('instituicaoId', 'nome imagem');
 
     return res.status(201).json(eventoPopulado);
   } catch (error) {
@@ -61,7 +57,7 @@ exports.atualizarEvento = async (req, res) => {
     const evento = await Evento.findByIdAndUpdate(req.params.id, req.body, {
       new: true,
       runValidators: true,
-    }).populate('instituicaoId', 'nome fotoUrl');
+    }).populate('instituicaoId', 'nome imagem');
 
     if (!evento) return res.status(404).json({ erro: 'Evento não encontrado' });
     return res.json(evento);
@@ -72,9 +68,15 @@ exports.atualizarEvento = async (req, res) => {
 
 exports.deletarEvento = async (req, res) => {
   try {
-    const evento = await Evento.findByIdAndDelete(req.params.id);
+    const eventoId = req.params.id;
+
+    // apaga subeventos do evento antes
+    await SubEvento.deleteMany({ eventoPaiId: eventoId });
+
+    const evento = await Evento.findByIdAndDelete(eventoId);
     if (!evento) return res.status(404).json({ erro: 'Evento não encontrado' });
-    return res.json({ mensagem: 'Evento deletado com sucesso' });
+
+    return res.status(204).send();
   } catch (error) {
     return res.status(500).json({ erro: 'Erro ao deletar evento', detalhes: error.message });
   }
@@ -83,8 +85,9 @@ exports.deletarEvento = async (req, res) => {
 exports.listarEventosPorCategoria = async (req, res) => {
   try {
     const { categoria } = req.params;
+
     const eventos = await Evento.find({ categoria })
-      .populate('instituicaoId', 'nome fotoUrl')
+      .populate('instituicaoId', 'nome imagem')
       .sort({ data: 1 });
 
     return res.json(eventos);
@@ -98,7 +101,7 @@ exports.listarEventosPorInstituicao = async (req, res) => {
     const { instituicaoId } = req.params;
 
     const eventos = await Evento.find({ instituicaoId })
-      .populate('instituicaoId', 'nome fotoUrl')
+      .populate('instituicaoId', 'nome imagem')
       .sort({ data: 1 });
 
     return res.json(eventos);
@@ -107,12 +110,10 @@ exports.listarEventosPorInstituicao = async (req, res) => {
   }
 };
 
-
-// controllers/eventoController.js
 exports.renomearCategoriaSubeventos = async (req, res) => {
   try {
     const { id } = req.params;
-    let { antiga, nova } = req.body;
+    let { antiga, nova } = req.body || {};
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({ message: 'ID inválido' });
@@ -132,13 +133,13 @@ exports.renomearCategoriaSubeventos = async (req, res) => {
 
     const catsAntigas = (eventoOriginal.categoriasSubeventos || [])
       .map((c) => (c || '').toString().trim())
-      .filter((c) => c.isNotEmpty);
+      .filter((c) => c.length > 0);
 
     const catsRenomeadas = catsAntigas.map((c) =>
       c.toLowerCase() === antiga.toLowerCase() ? nova : c
     );
 
-    // Remove duplicatas (case-insensitive) e garante pelo menos "Nova categoria"
+    // Remove duplicatas (case-insensitive) e garante pelo menos 1
     const seen = new Set();
     const unique = [];
     for (const c of catsRenomeadas) {
@@ -155,7 +156,7 @@ exports.renomearCategoriaSubeventos = async (req, res) => {
       { _id: id },
       { $set: { categoriasSubeventos: unique } },
       { new: true }
-    ).populate('instituicaoId', 'nome fotoUrl');
+    ).populate('instituicaoId', 'nome imagem');
 
     await SubEvento.updateMany(
       { eventoPaiId: id, categoria: antiga },
@@ -170,6 +171,3 @@ exports.renomearCategoriaSubeventos = async (req, res) => {
     });
   }
 };
-
-
-

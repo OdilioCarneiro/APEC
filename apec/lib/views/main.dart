@@ -45,11 +45,36 @@ final GoRouter _router = GoRouter(
       path: '/starter_page',
       builder: (context, state) => const SegundaTela(),
     ),
+
+    // LOGIN FORA DO SHELL (para não aparecer Tabview no login)
     GoRoute(
-      path: '/tabview',
-      redirect: (context, state) => '/home',
+      path: '/login',
+      builder: (context, state) => const InstitPage(),
+      routes: [
+        GoRoute(
+          path: 'editar_evento',
+          builder: (context, state) {
+            final evento = state.extra as Evento;
+            return EditarEventoPage(evento: evento);
+          },
+        ),
+        GoRoute(
+          path: 'cadastro_instituicao',
+          builder: (context, state) => const CadasInstPage(),
+        ),
+
+        // CORRETO: rota filha sem começar com "/"
+        GoRoute(
+          path: 'edit_inst_page',
+          builder: (context, state) {
+            final initial = state.extra as Map<String, dynamic>?;
+            return EditarInstPage(initial: initial);
+          },
+        ),
+      ],
     ),
 
+    // Shell com Tabview
     ShellRoute(
       builder: (context, state, child) => Tabview(child: child),
       routes: [
@@ -65,59 +90,27 @@ final GoRouter _router = GoRouter(
           path: '/cultura',
           builder: (context, state) => const CulturaPage(),
         ),
+
+        // DEIXE PERFIL SÓ AQUI (removido duplicado dentro de /login)
         GoRoute(
           path: '/perfil_instituicao',
           builder: (context, state) => const PerfilInstituicaoPage(),
         ),
+
         GoRoute(
           path: '/cadastro_evento',
           builder: (context, state) => const Cadastro(),
         ),
-       GoRoute(
+        GoRoute(
           path: '/subevento',
           builder: (context, state) {
             final extra = state.extra as Map<String, dynamic>;
-
             return CadastroSubEvento(
               eventoPai: extra['eventoPai'] as Evento,
               categoriaInicial: (extra['categoria'] ?? '').toString(),
               categorias: (extra['categorias'] as List?)?.cast<String>() ?? const ['Subeventos'],
             );
           },
-        ),
-
-
-
-
-
-        GoRoute(
-          path: '/login',
-          builder: (context, state) => const InstitPage(),
-          routes: [
-            GoRoute(
-              path: 'editar_evento',
-              builder: (context, state) {
-                final evento = state.extra as Evento;
-                return EditarEventoPage(evento: evento);
-              },
-            ),
-            GoRoute(
-              path: 'perfil_instituicao', // <<< RELATIVO
-              builder: (context, state) => const PerfilInstituicaoPage(),
-            ),
-            GoRoute(
-              path: 'cadastro_instituicao', // <<< RELATIVO
-              builder: (context, state) => const CadasInstPage(),
-            ),
-            GoRoute(
-              path: '/edit_inst_page',
-              builder: (context, state) {
-                final initial = state.extra as Map<String, dynamic>?; // pode ser null
-                return EditarInstPage(initial: initial);
-              },
-            ),
-
-          ],
         ),
 
         GoRoute(
