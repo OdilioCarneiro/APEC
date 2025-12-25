@@ -23,18 +23,37 @@ class SubEventoCardComponent extends StatelessWidget {
 
   String _dataBr(String isoDate) {
     try {
-      // Esperado: "YYYY-MM-DD"
-      final dt = DateTime.parse(isoDate);
+      final dt = DateTime.parse(isoDate.length >= 10 ? isoDate.substring(0, 10) : isoDate);
       return DateFormat('dd/MM/yyyy', 'pt_BR').format(dt);
     } catch (_) {
       return isoDate;
     }
   }
 
-  String _horaBr(String? hora) {
-    final h = (hora ?? '').trim();
-    // Esperado: "HH:mm" (se você salvar assim)
-    return h;
+  String _horaBr(String hora) => hora.trim();
+
+  String _tipoLabel(Categoria? tipo) {
+    if (tipo == null) return 'Não informado';
+    switch (tipo) {
+      case Categoria.esportiva:
+        return 'Esportivo';
+      case Categoria.cultural:
+        return 'Cultural';
+      case Categoria.ambos:
+        return 'Ambos';
+    }
+  }
+
+  IconData _tipoIcon(Categoria? tipo) {
+    if (tipo == Categoria.esportiva) return Icons.sports_soccer;
+    if (tipo == Categoria.cultural) return Icons.theater_comedy_outlined;
+    return Icons.category_outlined;
+  }
+
+  Color _tipoColor(Categoria? tipo) {
+    if (tipo == Categoria.esportiva) return const Color(0xFF1565C0);
+    if (tipo == Categoria.cultural) return const Color(0xFF6A1B9A);
+    return const Color(0xFF455A64);
   }
 
   Widget _buildImagem(String imagem, {BoxFit fit = BoxFit.cover}) {
@@ -43,7 +62,7 @@ class SubEventoCardComponent extends StatelessWidget {
     if (img.isEmpty) {
       return Container(
         color: Colors.grey.shade300,
-        child: const Center(child: Icon(Icons.broken_image)),
+        child: const Center(child: Icon(Icons.broken_image_outlined)),
       );
     }
 
@@ -53,7 +72,7 @@ class SubEventoCardComponent extends StatelessWidget {
         fit: fit,
         errorBuilder: (_, __, ___) => Container(
           color: Colors.grey.shade300,
-          child: const Center(child: Icon(Icons.broken_image)),
+          child: const Center(child: Icon(Icons.broken_image_outlined)),
         ),
       );
     }
@@ -63,7 +82,7 @@ class SubEventoCardComponent extends StatelessWidget {
       fit: fit,
       errorBuilder: (_, __, ___) => Container(
         color: Colors.grey.shade300,
-        child: const Center(child: Icon(Icons.broken_image)),
+        child: const Center(child: Icon(Icons.broken_image_outlined)),
       ),
     );
   }
@@ -84,29 +103,81 @@ class SubEventoCardComponent extends StatelessWidget {
     required String label,
     required IconData icon,
     required VoidCallback onPressed,
+    Color? background,
   }) {
-    return ElevatedButton.icon(
+    return FilledButton.tonalIcon(
       onPressed: onPressed,
       icon: Icon(icon, size: 20),
       label: Text(label),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: const Color(0xFF263238),
-        foregroundColor: Colors.white,
-        elevation: 0,
-
-        // pill maior + mais “tocável”
-        minimumSize: const Size(160, 44),
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-
-        // Roboto Medium real via fontWeight
+      style: FilledButton.styleFrom(
+        backgroundColor: background,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         textStyle: const TextStyle(
           fontFamily: 'Roboto',
-          fontWeight: FontWeight.w500,
-          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          fontSize: 13,
         ),
-
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
       ),
+    );
+  }
+
+  Widget _sectionCard({
+    required Widget child,
+  }) {
+    return Card(
+      elevation: 0,
+      color: const Color(0xFFF6F7F8),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: child,
+      ),
+    );
+  }
+
+  Widget _infoRow(IconData icon, String text, {bool soft = false}) {
+    final color = soft ? const Color(0xFF607D8B) : const Color(0xFF263238);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 18, color: const Color(0xFF607D8B)),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            text,
+            style: TextStyle(
+              color: color,
+              fontSize: 14,
+              height: 1.25,
+              fontFamily: 'Roboto',
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _chip({
+    required IconData icon,
+    required String label,
+    required Color color,
+  }) {
+    return Chip(
+      avatar: Icon(icon, size: 16, color: color),
+      label: Text(
+        label,
+        style: const TextStyle(
+          fontFamily: 'Roboto',
+          fontWeight: FontWeight.w600,
+          fontSize: 12,
+        ),
+      ),
+      side: BorderSide(color: color.withValues(alpha: 0.25)),
+      backgroundColor: color.withValues(alpha: 0.08),
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+      visualDensity: VisualDensity.compact,
     );
   }
 
@@ -114,191 +185,256 @@ class SubEventoCardComponent extends StatelessWidget {
     final fotosLinks = _splitLinks(s.fotosUrl);
     final videoLinks = _splitLinks(s.videoUrl);
 
+    final data = _dataBr(s.data);
+    final hora = _horaBr(s.hora);
+    final dataHora = hora.isEmpty ? data : '$data • $hora';
+
+    final tipo = s.tipo; // novo modelo
+    final tipoColor = _tipoColor(tipo);
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
       backgroundColor: Colors.transparent,
+      showDragHandle: true, // Material 3 [web:71]
       builder: (ctx) {
-        final descController = ScrollController();
-        final screenHeight = MediaQuery.of(ctx).size.height;
-        final maxDescHeight = (screenHeight * 0.25).clamp(120.0, 220.0);
-
-        final data = _dataBr(s.data);
-
-        // Mantive sua abordagem; ideal é ter "hora" no model.
-        final hora = _horaBr((s as dynamic).hora as String?);
-        final dataHora = hora.isEmpty ? data : '$data • $hora';
-
         return DraggableScrollableSheet(
-          initialChildSize: 0.72,
+          initialChildSize: 0.78,
           minChildSize: 0.45,
-          maxChildSize: 0.92,
+          maxChildSize: 0.94,
           builder: (ctx, scrollController) {
             return ClipRRect(
               borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
               child: Material(
                 color: Colors.white,
-                child: Column(
+                child: ListView(
+                  controller: scrollController,
+                  padding: EdgeInsets.zero,
                   children: [
-                    // TOPO (só o puxador)
-                    Container(
-                      width: double.infinity,
-                      height: 40,
-                      color: const Color.fromARGB(255, 255, 255, 255),
-                      alignment: Alignment.topCenter,
-                      child: Padding(
-                        padding: const EdgeInsets.only(top: 10),
-                        child: Container(
-                          width: 55,
-                          height: 5,
-                          decoration: BoxDecoration(
-                            color: Colors.black26,
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                        ),
-                      ),
+                    AspectRatio(
+                      aspectRatio: 26 / 17,
+                      child: _buildImagem(s.imagem, fit: BoxFit.cover),
                     ),
-
-                    // CORPO
-                    Expanded(
-                      child: ListView(
-                        controller: scrollController,
-                        padding: EdgeInsets.zero,
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 14, 16, 18),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          AspectRatio(
-                            aspectRatio: 26 / 19,
-                            child: _buildImagem(s.imagem, fit: BoxFit.fill),
+                          Text(
+                            s.nome,
+                            style: const TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.w800,
+                              fontFamily: 'Roboto',
+                              color: Color(0xFF263238),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              _chip(
+                                icon: _tipoIcon(tipo),
+                                label: _tipoLabel(tipo),
+                                color: tipoColor,
+                              ),
+                              if ((s.categoria ?? '').trim().isNotEmpty)
+                                _chip(
+                                  icon: Icons.label_outline,
+                                  label: (s.categoria ?? '').trim(),
+                                  color: const Color(0xFF455A64),
+                                ),
+                              if ((s.categoriaEsportiva != null) && tipo == Categoria.esportiva)
+                                _chip(
+                                  icon: Icons.sports,
+                                  label: s.categoriaEsportiva!.name,
+                                  color: const Color(0xFF1565C0),
+                                ),
+                              if ((s.categoriaCultural != null) && tipo == Categoria.cultural)
+                                _chip(
+                                  icon: Icons.palette_outlined,
+                                  label: s.categoriaCultural!.name,
+                                  color: const Color(0xFF6A1B9A),
+                                ),
+                              if ((s.genero != null) && tipo == Categoria.esportiva)
+                                _chip(
+                                  icon: Icons.person_outline,
+                                  label: s.genero!.name,
+                                  color: const Color(0xFF1565C0),
+                                ),
+                            ],
                           ),
 
-                          Padding(
-                            padding: const EdgeInsets.all(16),
+                          const SizedBox(height: 14),
+
+                          _sectionCard(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  s.nome,
-                                  style: const TextStyle(
-                                    fontSize: 32,
-                                    fontWeight: FontWeight.w800,
-                                    fontFamily: 'Roboto',
-                                    color: Color(0xFF263238),
-                                  ),
-                                ),
-
+                                _infoRow(Icons.calendar_today_outlined, dataHora, soft: true),
                                 const SizedBox(height: 10),
+                                _infoRow(Icons.location_on_outlined, s.local, soft: true),
+                              ],
+                            ),
+                          ),
 
-                                // DESCRIÇÃO (seu modelo com Scrollbar + maxHeight)
-                                if (s.descricao.trim().isNotEmpty)
-                                  Container(
-                                    constraints: BoxConstraints(maxHeight: maxDescHeight),
-                                    margin: const EdgeInsets.symmetric(vertical: 5),
-                                    child: Scrollbar(
-                                      thumbVisibility: true,
-                                      controller: descController,
-                                      child: SingleChildScrollView(
-                                        controller: descController,
-                                        child: Text(
-                                          s.descricao,
-                                          style: const TextStyle(
-                                            color: Colors.black87,
-                                            fontSize: 16,
-                                            height: 1.3,
-                                            fontFamily: 'Roboto',
-                                            fontWeight: FontWeight.w400,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-
-                                const SizedBox(height: 16),
-
-                                // DATA (BR) + HORA (lado a lado)
-                                Row(
-                                  children: [
-                                    const Icon(Icons.calendar_today, size: 21, color: Color(0xFF546E7A)),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Text(
-                                        dataHora,
-                                        style: const TextStyle(
-                                          color: Color(0xFF546E7A),
-                                          fontSize: 21,
-                                          fontFamily: 'Roboto',
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-
-                                const SizedBox(height: 10),
-
-                                // LOCAL (embaixo)
-                                Row(
-                                  children: [
-                                    const Icon(Icons.location_on_outlined, size: 21, color: Color(0xFF546E7A)),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Text(
-                                        s.local,
-                                        style: const TextStyle(
-                                          color: Color(0xFF546E7A),
-                                          fontSize: 21,
-                                          fontFamily: 'Roboto',
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-
-                                if ((s.placar ?? '').trim().isNotEmpty) ...[
-                                  const SizedBox(height: 16),
-                                  Text(
-                                    s.placar!.trim(),
-                                    style: const TextStyle(
-                                      color: Color(0xFF546E7A),
+                          if (s.descricao.trim().isNotEmpty) ...[
+                            const SizedBox(height: 12),
+                            _sectionCard(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Descrição',
+                                    style: TextStyle(
+                                      fontFamily: 'Roboto',
+                                      fontWeight: FontWeight.w800,
                                       fontSize: 14,
+                                      color: Color(0xFF263238),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    s.descricao,
+                                    style: const TextStyle(
+                                      color: Color(0xFF37474F),
+                                      fontSize: 14,
+                                      height: 1.35,
                                       fontFamily: 'Roboto',
                                       fontWeight: FontWeight.w400,
                                     ),
                                   ),
                                 ],
+                              ),
+                            ),
+                          ],
 
-                                const SizedBox(height: 16),
+                          // CULTURAL
+                          if (tipo == Categoria.cultural) ...[
+                            const SizedBox(height: 12),
+                            _sectionCard(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Detalhes culturais',
+                                    style: TextStyle(
+                                      fontFamily: 'Roboto',
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 14,
+                                      color: Color(0xFF263238),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  if ((s.tema ?? '').trim().isNotEmpty)
+                                    _infoRow(Icons.topic_outlined, (s.tema ?? '').trim()),
+                                  if ((s.tema ?? '').trim().isNotEmpty) const SizedBox(height: 8),
+                                  if ((s.artistas ?? const <String>[]).isNotEmpty)
+                                    _infoRow(Icons.mic_none_outlined, (s.artistas ?? []).join(', ')),
+                                ],
+                              ),
+                            ),
+                          ],
 
+                          // ESPORTIVO
+                          if (tipo == Categoria.esportiva) ...[
+                            const SizedBox(height: 12),
+                            _sectionCard(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Detalhes esportivos',
+                                    style: TextStyle(
+                                      fontFamily: 'Roboto',
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 14,
+                                      color: Color(0xFF263238),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+
+                                  if ((s.placar ?? '').trim().isNotEmpty)
+                                    _infoRow(Icons.emoji_events_outlined, (s.placar ?? '').trim()),
+
+                                  // NATAÇÃO (novo modelo)
+                                  if (s.jogoNatacao != null) ...[
+                                    if ((s.placar ?? '').trim().isNotEmpty) const SizedBox(height: 10),
+                                    _infoRow(Icons.person_outline, 'Atleta: ${s.jogoNatacao!.atleta}'),
+                                    const SizedBox(height: 8),
+                                    _infoRow(Icons.pool_outlined, 'Modalidade: ${s.jogoNatacao!.modalidade.name}'),
+                                    const SizedBox(height: 8),
+                                    _infoRow(Icons.timer_outlined, 'Tempo: ${s.jogoNatacao!.tempo}'),
+                                    if (s.jogoNatacao!.data.trim().isNotEmpty) ...[
+                                      const SizedBox(height: 8),
+                                      _infoRow(Icons.calendar_today_outlined, 'Data da prova: ${_dataBr(s.jogoNatacao!.data)}'),
+                                    ],
+                                  ],
+
+                                  // JOGO genérico (se você usar em futebol/basquete etc.)
+                                  if (s.jogo != null) ...[
+                                    const SizedBox(height: 10),
+                                    _infoRow(Icons.groups_2_outlined, '${s.jogo!.timeA} vs ${s.jogo!.timeB}'),
+                                    const SizedBox(height: 8),
+                                    _infoRow(Icons.scoreboard_outlined, 'Placar: ${s.jogo!.placarA} x ${s.jogo!.placarB}'),
+                                    const SizedBox(height: 8),
+                                    _infoRow(Icons.place_outlined, 'Local: ${s.jogo!.local}'),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ],
+
+                          const SizedBox(height: 12),
+
+                          _sectionCard(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Links',
+                                  style: TextStyle(
+                                    fontFamily: 'Roboto',
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 14,
+                                    color: Color(0xFF263238),
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
                                 if (fotosLinks.isEmpty && videoLinks.isEmpty)
                                   Text(
                                     'Sem links cadastrados.',
-                                    style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                                    style: TextStyle(color: Colors.grey.shade700, fontSize: 12),
                                   )
                                 else
                                   Wrap(
-                                    spacing: 30,
+                                    spacing: 10,
                                     runSpacing: 10,
                                     children: [
                                       for (int i = 0; i < fotosLinks.length; i++)
                                         _pillButton(
-                                          label: fotosLinks.length == 1 ? 'fotos' : 'fotos ${i + 1}',
+                                          label: fotosLinks.length == 1 ? 'Fotos' : 'Fotos ${i + 1}',
                                           icon: Icons.photo_library_outlined,
+                                          background: const Color(0xFF263238).withValues(alpha: 0.08),
                                           onPressed: () => _abrirLink(fotosLinks[i]),
                                         ),
                                       for (int i = 0; i < videoLinks.length; i++)
                                         _pillButton(
                                           label: videoLinks.length == 1 ? 'Assistir' : 'Assistir ${i + 1}',
                                           icon: Icons.play_arrow_rounded,
+                                          background: const Color(0xFF263238).withValues(alpha: 0.08),
                                           onPressed: () => _abrirLink(videoLinks[i]),
                                         ),
                                     ],
                                   ),
-
-                                const SizedBox(height: 24),
                               ],
                             ),
                           ),
+
+                          const SizedBox(height: 18),
                         ],
                       ),
                     ),
@@ -316,8 +452,14 @@ class SubEventoCardComponent extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = subevento;
 
+    final data = _dataBr(s.data);
+    final hora = s.hora.trim();
+    final dataHora = hora.isEmpty ? data : '$data • $hora';
+
     return Card(
       clipBehavior: Clip.hardEdge,
+      elevation: 1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       child: SizedBox(
         width: 305,
         height: 140,
@@ -332,7 +474,7 @@ class SubEventoCardComponent extends StatelessWidget {
                     end: Alignment.bottomCenter,
                     colors: [
                       Color.fromARGB(0, 0, 0, 0),
-                      Color.fromARGB(160, 0, 0, 0),
+                      Color.fromARGB(180, 0, 0, 0),
                     ],
                   ),
                 ),
@@ -350,13 +492,20 @@ class SubEventoCardComponent extends StatelessWidget {
                       s.nome,
                       style: const TextStyle(
                         color: Colors.white,
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w800,
                         fontSize: 16,
+                        fontFamily: 'Roboto',
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    Text(s.data, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                    const SizedBox(height: 2),
+                    Text(
+                      dataHora,
+                      style: const TextStyle(color: Colors.white70, fontSize: 12),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                     Text(
                       s.local,
                       style: const TextStyle(color: Colors.white70, fontSize: 12),

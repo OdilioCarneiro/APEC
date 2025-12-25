@@ -59,17 +59,35 @@ class _EditarSubEventoPageState extends State<EditarSubEventoPage> {
     ),
   );
 
+  // ===== controllers base =====
   final _nomeController = TextEditingController();
   final _descricaoController = TextEditingController();
   final _localController = TextEditingController();
   final _imagemController = TextEditingController();
-  final _horarioController = TextEditingController();
+  final _horaController = TextEditingController();
 
   final _placarController = TextEditingController();
   final _fotosUrlController = TextEditingController();
   final _videoUrlController = TextEditingController();
 
+  // ===== controllers cultural =====
+  final _temaController = TextEditingController();
+  final _artistasController = TextEditingController();
+
+  // ===== controllers natacao =====
+  final _atletaController = TextEditingController();
+  final _tempoController = TextEditingController();
+  final _dataProvaController = TextEditingController();
+
   String? _categoriaSelecionadaTexto;
+
+  // ===== selections novas =====
+  Categoria? _tipoSelecionado; // esportiva | cultural
+  CategoriEspotiva? _categoriaEsportivaSelecionada;
+  Genero? _generoSelecionado;
+
+  CategoriaCultural? _categoriaCulturalSelecionada;
+  ModalidadeNatacao _modalidadeNatacaoSelecionada = ModalidadeNatacao.crawl;
 
   DateTime _dataSelecionada = DateTime.now();
   TimeOfDay _horaSelecionada = TimeOfDay.now();
@@ -86,28 +104,56 @@ class _EditarSubEventoPageState extends State<EditarSubEventoPage> {
     _nomeController.text = s.nome;
     _descricaoController.text = s.descricao;
     _localController.text = s.local;
-
     _imagemController.text = s.imagem;
 
+    // data/hora
     final parsedDate = _tryParseDate(s.data);
     if (parsedDate != null) _dataSelecionada = parsedDate;
 
     final parsedTime = _tryParseTime(s.hora);
     if (parsedTime != null) _horaSelecionada = parsedTime;
+    _horaController.text = _formatHora(_horaSelecionada);
 
-    _horarioController.text = _formatHora(_horaSelecionada);
-
+    // gerais
     _placarController.text = s.placar ?? '';
     _fotosUrlController.text = s.fotosUrl ?? '';
     _videoUrlController.text = s.videoUrl ?? '';
 
+    // categoria de agrupamento (texto)
     final cat = (s.categoria ?? '').trim();
     if (cat.isNotEmpty && widget.categorias.contains(cat)) {
       _categoriaSelecionadaTexto = cat;
     } else if (widget.categorias.isNotEmpty) {
       _categoriaSelecionadaTexto = widget.categorias.first;
     } else {
-      _categoriaSelecionadaTexto = cat.isNotEmpty ? cat : 'Subeventos';
+      _categoriaSelecionadaTexto = cat.isNotEmpty ? cat : 'Nova categoria';
+    }
+
+    // ===== novos campos do modelo =====
+    _tipoSelecionado = (s.tipo == Categoria.esportiva || s.tipo == Categoria.cultural) ? s.tipo : null;
+
+    // esportivo
+    _categoriaEsportivaSelecionada = s.categoriaEsportiva;
+    _generoSelecionado = s.genero;
+
+    // cultural
+    _temaController.text = s.tema ?? '';
+    _categoriaCulturalSelecionada = s.categoriaCultural;
+    _artistasController.text = (s.artistas ?? []).join('; ');
+
+    // natação (jogoNatacao)
+    if (s.jogoNatacao != null) {
+      _atletaController.text = s.jogoNatacao!.atleta;
+      _modalidadeNatacaoSelecionada = s.jogoNatacao!.modalidade;
+      _tempoController.text = s.jogoNatacao!.tempo;
+      _dataProvaController.text = s.jogoNatacao!.data;
+    }
+
+    // Se evento pai não é ambos, força tipo consistente
+    if (widget.eventoPai.categoria == Categoria.esportiva) {
+      _tipoSelecionado = Categoria.esportiva;
+    } else if (widget.eventoPai.categoria == Categoria.cultural) {
+      _tipoSelecionado = Categoria.cultural;
     }
   }
 
@@ -117,15 +163,23 @@ class _EditarSubEventoPageState extends State<EditarSubEventoPage> {
     _descricaoController.dispose();
     _localController.dispose();
     _imagemController.dispose();
-    _horarioController.dispose();
+    _horaController.dispose();
+
     _placarController.dispose();
     _fotosUrlController.dispose();
     _videoUrlController.dispose();
+
+    _temaController.dispose();
+    _artistasController.dispose();
+
+    _atletaController.dispose();
+    _tempoController.dispose();
+    _dataProvaController.dispose();
+
     super.dispose();
   }
 
-  String _formatHora(TimeOfDay t) =>
-      '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+  String _formatHora(TimeOfDay t) => '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
 
   DateTime? _tryParseDate(String raw) {
     final s = raw.trim();
@@ -151,13 +205,9 @@ class _EditarSubEventoPageState extends State<EditarSubEventoPage> {
   String? _resolveImageUrl(String raw) {
     final s = raw.trim();
     if (s.isEmpty) return null;
-
     if (s.startsWith('http')) return s;
 
-    // baseUrl = https://apec-1-25ad.onrender.com/api
     final host = ApiService.baseUrl.replaceAll('/api', '');
-
-    // multer costuma salvar "uploads/..." ou "/uploads/..."
     if (s.startsWith('/')) return '$host$s';
     return '$host/$s';
   }
@@ -189,16 +239,57 @@ class _EditarSubEventoPageState extends State<EditarSubEventoPage> {
       builder: (BuildContext context, Widget? child) {
         return MediaQuery(
           data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
-          child: child!,
+          child: child ?? const SizedBox.shrink(),
         );
       },
     );
     if (picked != null) {
       setState(() {
         _horaSelecionada = picked;
-        _horarioController.text = _formatHora(_horaSelecionada);
+        _horaController.text = _formatHora(_horaSelecionada);
       });
     }
+  }
+
+  void _onChangeTipo(Categoria? tipo) {
+    setState(() {
+      _tipoSelecionado = tipo;
+
+      if (tipo == Categoria.cultural) {
+        // limpa esportivo
+        _categoriaEsportivaSelecionada = null;
+        _generoSelecionado = null;
+        _atletaController.clear();
+        _tempoController.clear();
+        _dataProvaController.clear();
+        _modalidadeNatacaoSelecionada = ModalidadeNatacao.crawl;
+      } else if (tipo == Categoria.esportiva) {
+        // limpa cultural
+        _temaController.clear();
+        _artistasController.clear();
+        _categoriaCulturalSelecionada = null;
+      }
+    });
+  }
+
+  void _onChangeCategoriaEsportiva(CategoriEspotiva? c) {
+    setState(() {
+      _categoriaEsportivaSelecionada = c;
+      if (c != CategoriEspotiva.natacao) {
+        _atletaController.clear();
+        _tempoController.clear();
+        _dataProvaController.clear();
+        _modalidadeNatacaoSelecionada = ModalidadeNatacao.crawl;
+      }
+    });
+  }
+
+  List<String> _parseLista(String raw) {
+    return raw
+        .split(RegExp(r'[;,]'))
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
   }
 
   Future<void> _salvarAlteracoes() async {
@@ -210,6 +301,45 @@ class _EditarSubEventoPageState extends State<EditarSubEventoPage> {
         const SnackBar(content: Text('Por favor, preencha nome e local!')),
       );
       return;
+    }
+
+    if (_tipoSelecionado != Categoria.esportiva && _tipoSelecionado != Categoria.cultural) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Selecione o tipo do subevento (esportivo ou cultural).')),
+      );
+      return;
+    }
+
+    // validações específicas
+    if (_tipoSelecionado == Categoria.esportiva) {
+      if (_categoriaEsportivaSelecionada == null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Selecione a categoria esportiva.')),
+        );
+        return;
+      }
+
+      if (_categoriaEsportivaSelecionada == CategoriEspotiva.natacao) {
+        if (_atletaController.text.trim().isEmpty || _tempoController.text.trim().isEmpty) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Para natação, preencha atleta e tempo.')),
+          );
+          return;
+        }
+      }
+    }
+
+    if (_tipoSelecionado == Categoria.cultural) {
+      if (_categoriaCulturalSelecionada == null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Selecione a categoria cultural.')),
+        );
+        return;
+      }
     }
 
     final instituicaoId = await ApiService.lerInstituicaoId();
@@ -233,24 +363,65 @@ class _EditarSubEventoPageState extends State<EditarSubEventoPage> {
         'descricao': _descricaoController.text.trim(),
         'data': _dataSelecionada.toIso8601String().substring(0, 10),
 
-        // backend do POST usa "horario"
-        'horario': _formatHora(_horaSelecionada),
-
-        // mantém compatibilidade se seu model usa "hora"
+        // NOVO CERTO (model): hora
         'hora': _formatHora(_horaSelecionada),
 
+        // Se seu backend ainda aceitar "horario", mantém compat
+        'horario': _formatHora(_horaSelecionada),
+
         'local': _localController.text.trim(),
-        'placar': _placarController.text.trim(),
-        'fotosUrl': _fotosUrlController.text.trim(),
-        'videoUrl': _videoUrlController.text.trim(),
+        'placar': _placarController.text.trim().isEmpty ? null : _placarController.text.trim(),
+        'fotosUrl': _fotosUrlController.text.trim().isEmpty ? null : _fotosUrlController.text.trim(),
+        'videoUrl': _videoUrlController.text.trim().isEmpty ? null : _videoUrlController.text.trim(),
         'instituicaoId': instituicaoId,
         'eventoPaiId': widget.eventoPai.id,
+
+        // campos movidos pro subevento
+        'tipo': _tipoSelecionado!.name,
       };
+
+      if (_tipoSelecionado == Categoria.esportiva) {
+        dados['categoriaEsportiva'] = _categoriaEsportivaSelecionada!.name;
+        if (_generoSelecionado != null) dados['genero'] = _generoSelecionado!.name;
+
+        if (_categoriaEsportivaSelecionada == CategoriEspotiva.natacao) {
+          dados['jogoNatacao'] = {
+            'atleta': _atletaController.text.trim(),
+            'modalidade': _modalidadeNatacaoSelecionada.name,
+            'tempo': _tempoController.text.trim(),
+            'data': _dataProvaController.text.trim().isNotEmpty
+                ? _dataProvaController.text.trim()
+                : _dataSelecionada.toIso8601String().substring(0, 10),
+          };
+        } else {
+          // se não for natação, remove jogoNatacao (evita ficar lixo salvo)
+          dados['jogoNatacao'] = null;
+        }
+
+        // remove campos culturais
+        dados['tema'] = null;
+        dados['categoriaCultural'] = null;
+        dados['artistas'] = null;
+      }
+
+      if (_tipoSelecionado == Categoria.cultural) {
+        dados['tema'] = _temaController.text.trim().isEmpty ? null : _temaController.text.trim();
+        dados['categoriaCultural'] = _categoriaCulturalSelecionada!.name;
+
+        final artistas = _parseLista(_artistasController.text);
+        dados['artistas'] = artistas.isEmpty ? null : artistas;
+
+        // remove campos esportivos
+        dados['categoriaEsportiva'] = null;
+        dados['genero'] = null;
+        dados['jogo'] = null;
+        dados['jogoNatacao'] = null;
+      }
 
       final atualizado = await ApiService.atualizarSubEventoSmart(
         id: widget.subevento.id,
         dados: dados,
-        novaImagem: _selectedImage, // se null mantém, se File troca
+        novaImagem: _selectedImage,
       );
 
       if (!mounted) return;
@@ -279,6 +450,10 @@ class _EditarSubEventoPageState extends State<EditarSubEventoPage> {
     final double horizontalPadding = screenWidth * 0.04;
 
     final imageUrl = (_selectedImage == null) ? _resolveImageUrl(_imagemController.text) : null;
+
+    final List<Categoria> tiposPermitidos = widget.eventoPai.categoria == Categoria.ambos
+        ? const [Categoria.esportiva, Categoria.cultural]
+        : <Categoria>[widget.eventoPai.categoria];
 
     return Container(
       decoration: BoxDecoration(gradient: backgroundSla),
@@ -310,6 +485,7 @@ class _EditarSubEventoPageState extends State<EditarSubEventoPage> {
                       ),
                     ),
                     const SizedBox(height: 14),
+
                     const Text(
                       'Foto do SubEvento',
                       style: TextStyle(
@@ -351,7 +527,6 @@ class _EditarSubEventoPageState extends State<EditarSubEventoPage> {
                                         width: double.infinity,
                                         height: double.infinity,
                                         fit: BoxFit.cover,
-                                        // força refresh em muitos casos de cache (url muda => cache muda)
                                         key: ValueKey(imageUrl),
                                         errorBuilder: (_, __, ___) => Center(
                                           child: Icon(
@@ -377,32 +552,7 @@ class _EditarSubEventoPageState extends State<EditarSubEventoPage> {
 
                     TextFormField(
                       controller: _nomeController,
-                      decoration: InputDecoration(
-                        labelText: 'Nome do SubEvento',
-                        labelStyle: const TextStyle(
-                          fontSize: 16,
-                          fontFamily: 'RobotoMedium',
-                          color: Color.fromARGB(221, 151, 151, 151),
-                        ),
-                        floatingLabelStyle: const TextStyle(
-                          color: Color.fromARGB(255, 77, 168, 221),
-                          fontFamily: 'RobotoMedium',
-                          fontSize: 16,
-                        ),
-                        contentPadding:
-                            const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(7.0),
-                          borderSide: const BorderSide(color: Color.fromARGB(255, 83, 83, 83)),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(7.0),
-                          borderSide: const BorderSide(
-                            color: Color.fromARGB(255, 77, 168, 221),
-                            width: 2,
-                          ),
-                        ),
-                      ),
+                      decoration: const InputDecoration(labelText: 'Nome do SubEvento'),
                     ),
 
                     const SizedBox(height: 14),
@@ -444,6 +594,97 @@ class _EditarSubEventoPageState extends State<EditarSubEventoPage> {
                           .map((c) => DropdownMenuEntry<String>(value: c, label: c))
                           .toList(),
                     ),
+
+                    const SizedBox(height: 14),
+
+                    DropdownMenu<Categoria>(
+                      label: const Text('Tipo do SubEvento'),
+                      width: maxFormWidth,
+                      initialSelection: _tipoSelecionado,
+                      onSelected: (v) => _onChangeTipo(v),
+                      dropdownMenuEntries: tiposPermitidos
+                          .map((t) => DropdownMenuEntry<Categoria>(value: t, label: t.name))
+                          .toList(),
+                    ),
+
+                    const SizedBox(height: 14),
+
+                    if (_tipoSelecionado == Categoria.esportiva) ...[
+                      DropdownMenu<CategoriEspotiva>(
+                        label: const Text('Categoria esportiva'),
+                        width: maxFormWidth,
+                        initialSelection: _categoriaEsportivaSelecionada,
+                        onSelected: (v) => _onChangeCategoriaEsportiva(v),
+                        dropdownMenuEntries: CategoriEspotiva.values
+                            .map((c) => DropdownMenuEntry<CategoriEspotiva>(value: c, label: c.name))
+                            .toList(),
+                      ),
+                      const SizedBox(height: 14),
+                      DropdownMenu<Genero>(
+                        label: const Text('Gênero (opcional)'),
+                        width: maxFormWidth,
+                        initialSelection: _generoSelecionado,
+                        onSelected: (v) => setState(() => _generoSelecionado = v),
+                        dropdownMenuEntries: Genero.values
+                            .map((g) => DropdownMenuEntry<Genero>(value: g, label: g.name))
+                            .toList(),
+                      ),
+                      if (_categoriaEsportivaSelecionada == CategoriEspotiva.natacao) ...[
+                        const SizedBox(height: 14),
+                        TextFormField(
+                          controller: _atletaController,
+                          decoration: const InputDecoration(labelText: 'Atleta'),
+                        ),
+                        const SizedBox(height: 14),
+                        DropdownMenu<ModalidadeNatacao>(
+                          label: const Text('Modalidade'),
+                          width: maxFormWidth,
+                          initialSelection: _modalidadeNatacaoSelecionada,
+                          onSelected: (v) => setState(() {
+                            if (v != null) _modalidadeNatacaoSelecionada = v;
+                          }),
+                          dropdownMenuEntries: ModalidadeNatacao.values
+                              .map((m) => DropdownMenuEntry<ModalidadeNatacao>(value: m, label: m.name))
+                              .toList(),
+                        ),
+                        const SizedBox(height: 14),
+                        TextFormField(
+                          controller: _tempoController,
+                          decoration: const InputDecoration(labelText: 'Tempo (ex: 00:58.32)'),
+                        ),
+                        const SizedBox(height: 14),
+                        TextFormField(
+                          controller: _dataProvaController,
+                          decoration: const InputDecoration(
+                            labelText: 'Data da prova (opcional, AAAA-MM-DD)',
+                          ),
+                        ),
+                      ],
+                    ],
+
+                    if (_tipoSelecionado == Categoria.cultural) ...[
+                      TextFormField(
+                        controller: _temaController,
+                        decoration: const InputDecoration(labelText: 'Tema (opcional)'),
+                      ),
+                      const SizedBox(height: 14),
+                      DropdownMenu<CategoriaCultural>(
+                        label: const Text('Categoria cultural'),
+                        width: maxFormWidth,
+                        initialSelection: _categoriaCulturalSelecionada,
+                        onSelected: (v) => setState(() => _categoriaCulturalSelecionada = v),
+                        dropdownMenuEntries: CategoriaCultural.values
+                            .map((c) => DropdownMenuEntry<CategoriaCultural>(value: c, label: c.name))
+                            .toList(),
+                      ),
+                      const SizedBox(height: 14),
+                      TextFormField(
+                        controller: _artistasController,
+                        decoration: const InputDecoration(
+                          labelText: 'Artistas (separe por ; ou ,)',
+                        ),
+                      ),
+                    ],
 
                     const SizedBox(height: 14),
 
@@ -519,18 +760,14 @@ class _EditarSubEventoPageState extends State<EditarSubEventoPage> {
 
                     TextFormField(
                       controller: _fotosUrlController,
-                      decoration: const InputDecoration(
-                        labelText: 'Links de Fotos (separe por ; ou vírgula)',
-                      ),
+                      decoration: const InputDecoration(labelText: 'Links de Fotos (separe por ; ou vírgula)'),
                     ),
 
                     const SizedBox(height: 14),
 
                     TextFormField(
                       controller: _videoUrlController,
-                      decoration: const InputDecoration(
-                        labelText: 'Links de Vídeos (separe por ; ou vírgula)',
-                      ),
+                      decoration: const InputDecoration(labelText: 'Links de Vídeos (separe por ; ou vírgula)'),
                     ),
 
                     const SizedBox(height: 24),

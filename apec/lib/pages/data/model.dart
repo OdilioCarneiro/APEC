@@ -95,7 +95,8 @@ enum CategoriEspotiva {
   tenis,
 }
 
-enum Categoria { esportiva, cultural }
+// ATUALIZADO: Agora inclui "ambos"
+enum Categoria { esportiva, cultural, ambos }
 
 // cultural
 enum CategoriaCultural { musica, teatro, danca, exposicao, cinema, literatura }
@@ -225,7 +226,7 @@ class CategoriaSubevento {
       };
 }
 
-// ---------------- SUBEVENTO ----------------
+// ---------------- SUBEVENTO (ATUALIZADO) ----------------
 
 class SubEvento {
   final String id;
@@ -258,6 +259,22 @@ class SubEvento {
   final String? eventoPaiId;
   final String? instituicaoId;
 
+  // ========== CAMPOS MOVIDOS DO EVENTO ==========
+  
+  /// Tipo do subevento (esportivo ou cultural)
+  final Categoria? tipo;
+
+  // Campos esportivos
+  final CategoriEspotiva? categoriaEsportiva;
+  final Genero? genero;
+  final Jogo? jogo;
+  final JogoNatacao? jogoNatacao;
+
+  // Campos culturais
+  final String? tema;
+  final CategoriaCultural? categoriaCultural;
+  final List<String>? artistas;
+
   const SubEvento({
     required this.id,
     required this.categoriaId,
@@ -273,6 +290,15 @@ class SubEvento {
     this.placar,
     this.eventoPaiId,
     this.instituicaoId,
+    // Novos campos
+    this.tipo,
+    this.categoriaEsportiva,
+    this.genero,
+    this.jogo,
+    this.jogoNatacao,
+    this.tema,
+    this.categoriaCultural,
+    this.artistas,
   });
 
   factory SubEvento.fromAPI(Map<String, dynamic> j) {
@@ -291,6 +317,9 @@ class SubEvento {
 
     final categoriaId = (j['categoriaId'] ?? '').toString();
 
+    final rawJogo = j['jogo'];
+    final rawJogoNatacao = j['jogoNatacao'];
+
     return SubEvento(
       id: (j['_id'] ?? j['id'] ?? '').toString(),
       categoriaId: categoriaId,
@@ -306,6 +335,19 @@ class SubEvento {
       placar: _norm(j['placar']?.toString()),
       eventoPaiId: _idFromDynamic(j['eventoPaiId']),
       instituicaoId: _idFromDynamic(j['instituicaoId']),
+      // Novos campos
+      tipo: j['tipo'] != null ? _parseTipo(j['tipo']?.toString()) : null,
+      categoriaEsportiva: j['categoriaEsportiva'] != null
+          ? _parseCategoriEspotiva(j['categoriaEsportiva']?.toString())
+          : null,
+      genero: j['genero'] != null ? _parseGenero(j['genero']?.toString()) : null,
+      jogo: rawJogo is Map<String, dynamic> ? Jogo.fromAPI(rawJogo) : null,
+      jogoNatacao: rawJogoNatacao is Map<String, dynamic> ? JogoNatacao.fromAPI(rawJogoNatacao) : null,
+      tema: _norm(j['tema']?.toString()),
+      categoriaCultural: j['categoriaCultural'] != null
+          ? _parseCategoriaCultural(j['categoriaCultural']?.toString())
+          : null,
+      artistas: _parseArtistas(j['artistas']),
     );
   }
 
@@ -324,15 +366,79 @@ class SubEvento {
         'placar': placar,
         'eventoPaiId': eventoPaiId,
         'instituicaoId': instituicaoId,
+        // Novos campos
+        'tipo': tipo?.name,
+        'categoriaEsportiva': categoriaEsportiva?.name,
+        'genero': genero?.name,
+        'jogo': jogo?.toMap(),
+        'jogoNatacao': jogoNatacao?.toMap(),
+        'tema': tema,
+        'categoriaCultural': categoriaCultural?.name,
+        'artistas': artistas,
       };
+
+  // Helpers estáticos para SubEvento
+  static List<String>? _parseArtistas(dynamic raw) {
+    if (raw == null) return null;
+    if (raw is List) {
+      final list = raw.map((e) => e.toString().trim()).where((e) => e.isNotEmpty).toList();
+      return list.isEmpty ? null : list;
+    }
+    if (raw is String) {
+      final s = raw.trim();
+      if (s.isEmpty) return null;
+      final list = s.split(';').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+      return list.isEmpty ? null : list;
+    }
+    return null;
+  }
+
+  static Categoria? _parseTipo(String? value) {
+    if (value == null) return null;
+    try {
+      return Categoria.values.firstWhere((e) => e.name == value);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static CategoriEspotiva? _parseCategoriEspotiva(String? value) {
+    if (value == null) return null;
+    try {
+      return CategoriEspotiva.values.firstWhere((e) => e.name == value);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static Genero? _parseGenero(String? value) {
+    if (value == null) return null;
+    try {
+      return Genero.values.firstWhere((e) => e.name == value);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static CategoriaCultural? _parseCategoriaCultural(String? value) {
+    if (value == null) return null;
+    try {
+      return CategoriaCultural.values.firstWhere((e) => e.name == value);
+    } catch (_) {
+      return null;
+    }
+  }
 }
 
-// ---------------- EVENTO ----------------
+// ---------------- EVENTO (SIMPLIFICADO) ----------------
 
 class Evento {
   String? id;
   String nome;
+  
+  /// Agora pode ser: esportiva, cultural ou ambos
   Categoria categoria;
+  
   String descricao;
   String data;
   String horario;
@@ -343,24 +449,13 @@ class Evento {
   String? instituicaoId;
   Instituicao? instituicao;
 
-  // esportivo
-  CategoriEspotiva? categoriaEsportiva;
-  Genero? genero;
-  Jogo? jogo;
-  JogoNatacao? jogoNatacao;
-
-  // cultural
-  String? tema;
-  CategoriaCultural? categoriaCultural;
-  List<String>? artistas;
-
   // links
   Uri? linkInscricao;
   Uri? linkTransmissao;
   Uri? linkResultados;
   Uri? linkFotos;
 
-  // >>> subeventos
+  // >>> subeventos (agora com os campos específicos)
   List<String> categoriasSubeventos;
   List<SubEvento> subeventos;
 
@@ -375,13 +470,6 @@ class Evento {
     required this.horario,
     this.instituicaoId,
     this.instituicao,
-    this.categoriaEsportiva,
-    this.genero,
-    this.jogo,
-    this.jogoNatacao,
-    this.tema,
-    this.categoriaCultural,
-    this.artistas,
     this.linkInscricao,
     this.linkTransmissao,
     this.linkResultados,
@@ -402,13 +490,6 @@ class Evento {
       'imagem': imagem,
       'local': local,
       'instituicaoId': instituicaoId ?? instituicao?.id,
-      'categoriaEsportiva': categoriaEsportiva?.name,
-      'genero': genero?.name,
-      'jogo': jogo?.toMap(),
-      'jogoNatacao': jogoNatacao?.toMap(),
-      'tema': tema,
-      'categoriaCultural': categoriaCultural?.name,
-      'artistas': artistas,
       'linkInscricao': linkInscricao?.toString(),
       'linkTransmissao': linkTransmissao?.toString(),
       'linkResultados': linkResultados?.toString(),
@@ -439,9 +520,6 @@ class Evento {
       return Uri.tryParse(s);
     }
 
-    final rawJogo = json['jogo'];
-    final rawJogoNatacao = json['jogoNatacao'];
-
     return Evento(
       id: (json['_id'] ?? json['id'] ?? '').toString(),
       nome: (json['nome'] ?? '').toString(),
@@ -453,17 +531,6 @@ class Evento {
       imagem: (json['imagem'] ?? '').toString(),
       instituicaoId: instId,
       instituicao: inst,
-      categoriaEsportiva: json['categoriaEsportiva'] != null
-          ? _parseCategoriEspotiva(json['categoriaEsportiva']?.toString())
-          : null,
-      genero: json['genero'] != null ? _parseGenero(json['genero']?.toString()) : null,
-      jogo: rawJogo is Map<String, dynamic> ? Jogo.fromAPI(rawJogo) : null,
-      jogoNatacao: rawJogoNatacao is Map<String, dynamic> ? JogoNatacao.fromAPI(rawJogoNatacao) : null,
-      tema: json['tema']?.toString(),
-      categoriaCultural: json['categoriaCultural'] != null
-          ? _parseCategoriaCultural(json['categoriaCultural']?.toString())
-          : null,
-      artistas: _parseArtistas(json['artistas']),
       linkInscricao: _parseUri(json['linkInscricao']),
       linkTransmissao: _parseUri(json['linkTransmissao']),
       linkResultados: _parseUri(json['linkResultados']),
@@ -496,13 +563,6 @@ class Evento {
     String? local,
     String? instituicaoId,
     Instituicao? instituicao,
-    CategoriEspotiva? categoriaEsportiva,
-    Genero? genero,
-    Jogo? jogo,
-    JogoNatacao? jogoNatacao,
-    String? tema,
-    CategoriaCultural? categoriaCultural,
-    List<String>? artistas,
     Uri? linkInscricao,
     Uri? linkTransmissao,
     Uri? linkResultados,
@@ -521,13 +581,6 @@ class Evento {
       local: local ?? this.local,
       instituicaoId: instituicaoId ?? this.instituicaoId,
       instituicao: instituicao ?? this.instituicao,
-      categoriaEsportiva: categoriaEsportiva ?? this.categoriaEsportiva,
-      genero: genero ?? this.genero,
-      jogo: jogo ?? this.jogo,
-      jogoNatacao: jogoNatacao ?? this.jogoNatacao,
-      tema: tema ?? this.tema,
-      categoriaCultural: categoriaCultural ?? this.categoriaCultural,
-      artistas: artistas ?? this.artistas,
       linkInscricao: linkInscricao ?? this.linkInscricao,
       linkTransmissao: linkTransmissao ?? this.linkTransmissao,
       linkResultados: linkResultados ?? this.linkResultados,
@@ -539,56 +592,16 @@ class Evento {
 
   // ---------------- HELPERS ESTÁTICOS ----------------
 
-  static List<String>? _parseArtistas(dynamic raw) {
-    if (raw == null) return null;
-    if (raw is List) {
-      final list = raw.map((e) => e.toString().trim()).where((e) => e.isNotEmpty).toList();
-      return list.isEmpty ? null : list;
-    }
-    if (raw is String) {
-      final s = raw.trim();
-      if (s.isEmpty) return null;
-      final list = s.split(';').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
-      return list.isEmpty ? null : list;
-    }
-    return null;
-  }
-
   static Categoria _parseCategoria(String? value) {
     switch (value) {
       case 'esportiva':
         return Categoria.esportiva;
       case 'cultural':
         return Categoria.cultural;
+      case 'ambos':
+        return Categoria.ambos;
       default:
         return Categoria.esportiva;
-    }
-  }
-
-  static CategoriEspotiva? _parseCategoriEspotiva(String? value) {
-    if (value == null) return null;
-    try {
-      return CategoriEspotiva.values.firstWhere((e) => e.name == value);
-    } catch (_) {
-      return null;
-    }
-  }
-
-  static Genero? _parseGenero(String? value) {
-    if (value == null) return null;
-    try {
-      return Genero.values.firstWhere((e) => e.name == value);
-    } catch (_) {
-      return null;
-    }
-  }
-
-  static CategoriaCultural? _parseCategoriaCultural(String? value) {
-    if (value == null) return null;
-    try {
-      return CategoriaCultural.values.firstWhere((e) => e.name == value);
-    } catch (_) {
-      return null;
     }
   }
 }

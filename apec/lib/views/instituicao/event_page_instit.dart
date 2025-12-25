@@ -563,11 +563,28 @@ class _EventosPageInstitState extends State<EventosPageInstit> {
                             SizedBox(
                               width: double.infinity,
                               height: 46,
-                              child: OutlinedButton(
+                              child: ElevatedButton(
                                 onPressed: _adicionarLinha,
-                                child: const Text('Nova categoria'),
-                              ),
+                                style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color.fromARGB(255, 81, 191, 255),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(50),
+                                      side: const BorderSide(
+                                        color: Color.fromARGB(255, 69, 178, 241),
+                                        width: 2,
+                                      ),
+                                    ),
+                                  ),
+                              child: const Text('Nova categoria',
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 18,
+                                  fontFamily: 'RobotoBold',
                             ),
+                          ),
+                         ),
+                        ),
+
                             const SizedBox(height: 12),
                             ...List.generate(_linhas.length, (i) {
                               return Padding(

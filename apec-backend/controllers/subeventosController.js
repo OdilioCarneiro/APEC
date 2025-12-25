@@ -1,7 +1,66 @@
 // apec-backend/controllers/subeventosController.js
 const SubEvento = require('../models/Subevento');
 
+function parseMaybeJson(raw) {
+  if (raw == null) return raw;
+  if (typeof raw !== 'string') return raw;
 
+  const s = raw.trim();
+  if (!s) return raw;
+
+  // tenta parsear apenas se “parece JSON”
+  if ((s.startsWith('{') && s.endsWith('}')) || (s.startsWith('[') && s.endsWith(']'))) {
+    try {
+      return JSON.parse(s);
+    } catch (_) {
+      return raw;
+    }
+  }
+  return raw;
+}
+
+function normalizeArtistas(dados) {
+  if (dados.artistas == null) return;
+
+  // Se vier array OK
+  if (Array.isArray(dados.artistas)) {
+    dados.artistas = dados.artistas.map((x) => String(x).trim()).filter(Boolean);
+    return;
+  }
+
+  // Se vier JSON string tipo '["a","b"]'
+  const maybe = parseMaybeJson(dados.artistas);
+  if (Array.isArray(maybe)) {
+    dados.artistas = maybe.map((x) => String(x).trim()).filter(Boolean);
+    return;
+  }
+
+  // Se vier string "a;b,c"
+  if (typeof dados.artistas === 'string') {
+    dados.artistas = dados.artistas
+      .split(/[;,]/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }
+}
+
+function normalizeJogoObjects(dados) {
+  if (dados.jogo != null) dados.jogo = parseMaybeJson(dados.jogo);
+  if (dados.jogoNatacao != null) dados.jogoNatacao = parseMaybeJson(dados.jogoNatacao);
+}
+
+function normalizeHora(dados) {
+  // padroniza: se vier "hora", salva em "horario"
+  if (!dados.horario && dados.hora) dados.horario = dados.hora;
+  // opcional: se vier horario e não vier hora, pode preencher hora (se quiser manter ambos)
+  if (!dados.hora && dados.horario) dados.hora = dados.horario;
+}
+
+function normalizeCategoriaTexto(dados) {
+  // Categoria: texto da row (padrão "Nova categoria")
+  dados.categoria = (dados.categoria || 'Nova categoria').toString().trim();
+  if (!dados.categoria) dados.categoria = 'Nova categoria';
+}
 
 exports.listarSubEventos = async (req, res) => {
   try {
@@ -36,8 +95,18 @@ exports.criarSubEvento = async (req, res) => {
   try {
     const dados = { ...req.body };
 
+    // Normalizações importantes (multipart costuma mandar strings)
+    normalizeHora(dados);
+    normalizeCategoriaTexto(dados);
+    normalizeJogoObjects(dados);
+    normalizeArtistas(dados);
+
+    // Obrigatórios
     if (!dados.nome || !dados.data || !dados.horario || !dados.local) {
-      return res.status(400).json({ erro: 'Campos obrigatórios faltando' });
+      return res.status(400).json({
+        erro: 'Campos obrigatórios faltando',
+        detalhes: 'Obrigatórios: nome, data, horario (ou hora), local',
+      });
     }
     if (!dados.instituicaoId) {
       return res.status(400).json({ erro: 'instituicaoId é obrigatório' });
@@ -46,10 +115,7 @@ exports.criarSubEvento = async (req, res) => {
       return res.status(400).json({ erro: 'eventoPaiId é obrigatório' });
     }
 
-    // Categoria: texto da row (padrão Subeventos)
-    dados.categoria = (dados.categoria || 'Subeventos').toString().trim();
-    if (!dados.categoria) dados.categoria = 'Subeventos';
-
+    // imagem
     if (req.file) {
       dados.imagem = req.file.path;
     }
@@ -64,21 +130,19 @@ exports.criarSubEvento = async (req, res) => {
     return res.status(201).json(populado);
   } catch (error) {
     console.error('Erro ao criar subevento:', error);
-    return res
-      .status(400)
-      .json({ erro: 'Erro ao criar subevento', detalhes: error.message });
+    return res.status(400).json({ erro: 'Erro ao criar subevento', detalhes: error.message });
   }
 };
-
-
-
 
 exports.atualizarSubEvento = async (req, res) => {
   try {
     const dados = { ...req.body };
 
-    // padroniza: se vier "hora", salva em "horario" (seu model/POST usa "horario")
-    if (!dados.horario && dados.hora) dados.horario = dados.hora;
+    // Normalizações
+    normalizeHora(dados);
+    normalizeCategoriaTexto(dados);
+    normalizeJogoObjects(dados);
+    normalizeArtistas(dados);
 
     // se veio arquivo, atualiza a imagem
     if (req.file) {
@@ -98,7 +162,6 @@ exports.atualizarSubEvento = async (req, res) => {
     return res.status(400).json({ erro: 'Erro ao atualizar subevento', detalhes: error.message });
   }
 };
-
 
 exports.deletarSubEvento = async (req, res) => {
   try {

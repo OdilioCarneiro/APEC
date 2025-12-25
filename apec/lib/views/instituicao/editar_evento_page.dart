@@ -31,14 +31,9 @@ class _EditarEventoPageState extends State<EditarEventoPage> {
   final _descricaoController = TextEditingController();
   final _localController = TextEditingController();
   final _imagemController = TextEditingController();
-  final _temaController = TextEditingController();
-  final _artistasController = TextEditingController();
   final _horarioController = TextEditingController();
 
   Categoria? _categoriaSelecionada;
-  CategoriEspotiva? _categoriaEsportivaSelecionada;
-  Genero? _generoSelecionado;
-  CategoriaCultural? _categoriaCulturalSelecionada;
 
   DateTime _dataSelecionada = DateTime.now();
   TimeOfDay _horaSelecionada = TimeOfDay.now();
@@ -57,12 +52,6 @@ class _EditarEventoPageState extends State<EditarEventoPage> {
     _horarioController.text = e.horario;
 
     _categoriaSelecionada = e.categoria;
-    _categoriaEsportivaSelecionada = e.categoriaEsportiva;
-    _generoSelecionado = e.genero;
-    _categoriaCulturalSelecionada = e.categoriaCultural;
-
-    _temaController.text = e.tema ?? '';
-    _artistasController.text = (e.artistas ?? []).join(';');
 
     if (e.data.isNotEmpty) {
       try {
@@ -70,6 +59,9 @@ class _EditarEventoPageState extends State<EditarEventoPage> {
       } catch (_) {}
     }
     _horaSelecionada = _parseHora(e.horario);
+
+    // opcional: se você quiser manter o texto com a imagem atual (útil em debug)
+    _imagemController.text = e.imagem;
   }
 
   @override
@@ -78,8 +70,6 @@ class _EditarEventoPageState extends State<EditarEventoPage> {
     _descricaoController.dispose();
     _localController.dispose();
     _imagemController.dispose();
-    _temaController.dispose();
-    _artistasController.dispose();
     _horarioController.dispose();
     super.dispose();
   }
@@ -126,10 +116,11 @@ class _EditarEventoPageState extends State<EditarEventoPage> {
       builder: (BuildContext context, Widget? child) {
         return MediaQuery(
           data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
-          child: child!,
+          child: child ?? const SizedBox.shrink(),
         );
       },
     );
+
     if (picked != null) {
       setState(() {
         _horaSelecionada = picked;
@@ -162,8 +153,7 @@ class _EditarEventoPageState extends State<EditarEventoPage> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content:
-              Text('Você precisa estar logado como instituição para editar evento.'),
+          content: Text('Você precisa estar logado como instituição para editar evento.'),
           backgroundColor: Colors.red,
         ),
       );
@@ -175,40 +165,27 @@ class _EditarEventoPageState extends State<EditarEventoPage> {
 
       final dados = <String, dynamic>{
         'nome': _nomeController.text,
-        'categoria': _categoriaSelecionada!.name,
+        'categoria': _categoriaSelecionada!.name, // esportiva | cultural | ambos
         'descricao': _descricaoController.text,
         'data': _dataSelecionada.toIso8601String().substring(0, 10),
         'horario': _formatHora(_horaSelecionada),
         'local': _localController.text,
         'instituicaoId': instituicaoId,
+        // IMPORTANTE: tema/artistas/gênero/categoriaEsportiva/categoriaCultural saíram do Evento.
       };
 
-      if (_categoriaSelecionada == Categoria.esportiva) {
-        if (_categoriaEsportivaSelecionada != null) {
-          dados['categoriaEsportiva'] = _categoriaEsportivaSelecionada!.name;
-        }
-        if (_generoSelecionado != null) {
-          dados['genero'] = _generoSelecionado!.name;
-        }
+      // IMAGEM:
+      // Se o seu ApiService.atualizarEvento ainda for "JSON puro", isso aqui NÃO vai atualizar arquivo.
+      // A forma correta é o ApiService aceitar multipart quando _selectedImage != null.
+      // Aqui a tela só envia o path no campo imagem como fallback.
+      if (_selectedImage == null) {
+        // mantém a imagem atual ou o que tiver no controller (se você usar)
+        dados['imagem'] = widget.evento.imagem;
+      } else {
+        dados['imagem'] = _imagemController.text; // fallback (path local)
       }
 
-      if (_categoriaSelecionada == Categoria.cultural) {
-        dados['tema'] = _temaController.text;
-        dados['categoriaCultural'] = _categoriaCulturalSelecionada?.name ?? '';
-
-        final artistas = _artistasController.text
-            .split(';')
-            .map((e) => e.trim())
-            .where((e) => e.isNotEmpty)
-            .toList();
-
-        dados['artistas'] = artistas.join(';');
-      }
-
-      await ApiService.atualizarEvento(
-        widget.evento.id ?? '',
-        dados,
-      );
+      await ApiService.atualizarEvento(widget.evento.id ?? '', dados);
 
       if (!mounted) return;
 
@@ -333,8 +310,7 @@ class _EditarEventoPageState extends State<EditarEventoPage> {
                           fontFamily: 'RobotoMedium',
                           fontSize: 16,
                         ),
-                        contentPadding:
-                            const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(7.0),
                           borderSide: const BorderSide(
@@ -372,8 +348,7 @@ class _EditarEventoPageState extends State<EditarEventoPage> {
                             decoration: const InputDecoration(
                               labelText: 'Descrição/Sinopse',
                               border: InputBorder.none,
-                              contentPadding:
-                                  EdgeInsets.symmetric(horizontal: 1, vertical: 1),
+                              contentPadding: EdgeInsets.symmetric(horizontal: 1, vertical: 1),
                             ),
                           ),
                         ),
@@ -388,70 +363,14 @@ class _EditarEventoPageState extends State<EditarEventoPage> {
                       onSelected: (c) => setState(() => _categoriaSelecionada = c),
                       width: maxFormWidth,
                       dropdownMenuEntries: Categoria.values
-                          .map((c) =>
-                              DropdownMenuEntry<Categoria>(value: c, label: c.name))
+                          .map((c) => DropdownMenuEntry<Categoria>(value: c, label: c.name))
                           .toList(),
                     ),
 
                     const SizedBox(height: 14),
 
-                    if (_categoriaSelecionada == Categoria.esportiva) ...[
-                      DropdownMenu<CategoriEspotiva>(
-                        label: const Text('Tipo esportivo'),
-                        initialSelection: _categoriaEsportivaSelecionada,
-                        onSelected: (c) =>
-                            setState(() => _categoriaEsportivaSelecionada = c),
-                        width: maxFormWidth,
-                        dropdownMenuEntries: CategoriEspotiva.values
-                            .map((c) =>
-                                DropdownMenuEntry<CategoriEspotiva>(
-                                  value: c,
-                                  label: c.name,
-                                ))
-                            .toList(),
-                      ),
-                      const SizedBox(height: 14),
-                      DropdownMenu<Genero>(
-                        label: const Text('Gênero'),
-                        initialSelection: _generoSelecionado,
-                        onSelected: (g) => setState(() => _generoSelecionado = g),
-                        width: maxFormWidth,
-                        dropdownMenuEntries: Genero.values
-                            .map((g) =>
-                                DropdownMenuEntry<Genero>(value: g, label: g.name))
-                            .toList(),
-                      ),
-                    ],
-
-                    if (_categoriaSelecionada == Categoria.cultural) ...[
-                      TextFormField(
-                        controller: _temaController,
-                        decoration: const InputDecoration(labelText: 'Tema'),
-                      ),
-                      const SizedBox(height: 14),
-                      DropdownMenu<CategoriaCultural>(
-                        label: const Text('Tipo cultural'),
-                        initialSelection: _categoriaCulturalSelecionada,
-                        onSelected: (c) =>
-                            setState(() => _categoriaCulturalSelecionada = c),
-                        width: maxFormWidth,
-                        dropdownMenuEntries: CategoriaCultural.values
-                            .map((c) => DropdownMenuEntry<CategoriaCultural>(
-                                  value: c,
-                                  label: c.name,
-                                ))
-                            .toList(),
-                      ),
-                      const SizedBox(height: 14),
-                      TextFormField(
-                        controller: _artistasController,
-                        decoration: const InputDecoration(
-                          labelText: 'Artistas (separe por ";")',
-                        ),
-                      ),
-                    ],
-
-                    const SizedBox(height: 14),
+                    // REMOVIDO:
+                    // - campos esportivos/culturais, pois agora pertencem ao SubEvento [memory:conversation_history:5]
 
                     TextFormField(
                       controller: _localController,
@@ -507,8 +426,7 @@ class _EditarEventoPageState extends State<EditarEventoPage> {
                           children: [
                             Padding(
                               padding: const EdgeInsets.all(8.0),
-                              child:
-                                  Text('Hora: ${_formatHora(_horaSelecionada)}'),
+                              child: Text('Hora: ${_formatHora(_horaSelecionada)}'),
                             ),
                             const Padding(
                               padding: EdgeInsets.all(8.0),
@@ -526,8 +444,7 @@ class _EditarEventoPageState extends State<EditarEventoPage> {
                       height: 52,
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor:
-                              const Color.fromARGB(255, 81, 191, 255),
+                          backgroundColor: const Color.fromARGB(255, 81, 191, 255),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(50),
                             side: const BorderSide(
@@ -555,8 +472,7 @@ class _EditarEventoPageState extends State<EditarEventoPage> {
                       height: 52,
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor:
-                              const Color.fromARGB(255, 255, 81, 81),
+                          backgroundColor: const Color.fromARGB(255, 255, 81, 81),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(50),
                             side: const BorderSide(

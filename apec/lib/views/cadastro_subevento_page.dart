@@ -57,7 +57,6 @@ class CadastroSubEventoScreen extends StatefulWidget {
 }
 
 class _CadastroSubEventoScreenState extends State<CadastroSubEventoScreen> {
-  // ===== botões iguais ao cadastro de evento =====
   static const double _btnHeight = 52.0;
 
   static final ButtonStyle _btnSalvarStyle = ElevatedButton.styleFrom(
@@ -82,18 +81,36 @@ class _CadastroSubEventoScreenState extends State<CadastroSubEventoScreen> {
     ),
   );
 
-  // ===== controllers =====
+  // ===== controllers base =====
   final _nomeController = TextEditingController();
   final _descricaoController = TextEditingController();
   final _localController = TextEditingController();
   final _imagemController = TextEditingController();
-  final _horarioController = TextEditingController();
+  final _horaController = TextEditingController(); // era _horarioController
 
   final _placarController = TextEditingController();
   final _fotosUrlController = TextEditingController();
   final _videoUrlController = TextEditingController();
 
+  // ===== controllers cultural =====
+  final _temaController = TextEditingController();
+  final _artistasController = TextEditingController();
+
+  // ===== controllers natacao (jogoNatacao) =====
+  final _atletaController = TextEditingController();
+  final _tempoController = TextEditingController();
+  final _dataProvaController = TextEditingController(); // opcional: se quiser data diferente da do subevento
+
+  // ===== selections =====
   String? _categoriaSelecionadaTexto;
+
+  Categoria? _tipoSelecionado; // esportiva | cultural
+  CategoriEspotiva? _categoriaEsportivaSelecionada;
+  Genero? _generoSelecionado;
+
+  CategoriaCultural? _categoriaCulturalSelecionada;
+
+  ModalidadeNatacao _modalidadeNatacaoSelecionada = ModalidadeNatacao.crawl;
 
   DateTime _dataSelecionada = DateTime.now();
   TimeOfDay _horaSelecionada = TimeOfDay.now();
@@ -104,12 +121,26 @@ class _CadastroSubEventoScreenState extends State<CadastroSubEventoScreen> {
   @override
   void initState() {
     super.initState();
-    _horarioController.text = _formatHora(_horaSelecionada);
+
+    _horaController.text = _formatHora(_horaSelecionada);
 
     final inicial = widget.categoriaInicial.trim();
-    _categoriaSelecionadaTexto = inicial.isNotEmpty ? inicial : (widget.categorias.isNotEmpty ? widget.categorias.first : 'Subeventos');
+    _categoriaSelecionadaTexto = inicial.isNotEmpty
+        ? inicial
+        : (widget.categorias.isNotEmpty ? widget.categorias.first : 'Nova categoria');
+
     if (widget.categorias.isNotEmpty && !widget.categorias.contains(_categoriaSelecionadaTexto)) {
       _categoriaSelecionadaTexto = widget.categorias.first;
+    }
+
+    // Heurística boa: se o evento pai é esportiva/cultural, já pré-seleciona o tipo.
+    // Se for ambos, deixa null para a pessoa escolher.
+    if (widget.eventoPai.categoria == Categoria.esportiva) {
+      _tipoSelecionado = Categoria.esportiva;
+    } else if (widget.eventoPai.categoria == Categoria.cultural) {
+      _tipoSelecionado = Categoria.cultural;
+    } else {
+      _tipoSelecionado = null; // Categoria.ambos
     }
   }
 
@@ -119,10 +150,19 @@ class _CadastroSubEventoScreenState extends State<CadastroSubEventoScreen> {
     _descricaoController.dispose();
     _localController.dispose();
     _imagemController.dispose();
-    _horarioController.dispose();
+    _horaController.dispose();
+
     _placarController.dispose();
     _fotosUrlController.dispose();
     _videoUrlController.dispose();
+
+    _temaController.dispose();
+    _artistasController.dispose();
+
+    _atletaController.dispose();
+    _tempoController.dispose();
+    _dataProvaController.dispose();
+
     super.dispose();
   }
 
@@ -157,84 +197,194 @@ class _CadastroSubEventoScreenState extends State<CadastroSubEventoScreen> {
       builder: (BuildContext context, Widget? child) {
         return MediaQuery(
           data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
-          child: child!,
+          child: child ?? const SizedBox.shrink(),
         );
       },
     );
     if (picked != null) {
       setState(() {
         _horaSelecionada = picked;
-        _horarioController.text = _formatHora(_horaSelecionada);
+        _horaController.text = _formatHora(_horaSelecionada);
       });
     }
   }
 
+  void _onChangeTipo(Categoria? tipo) {
+    setState(() {
+      _tipoSelecionado = tipo;
+
+      // reset campos do outro tipo para não “vazar” dado
+      if (tipo == Categoria.cultural) {
+        _categoriaEsportivaSelecionada = null;
+        _generoSelecionado = null;
+        _atletaController.clear();
+        _tempoController.clear();
+        _dataProvaController.clear();
+        _modalidadeNatacaoSelecionada = ModalidadeNatacao.crawl;
+      } else if (tipo == Categoria.esportiva) {
+        _temaController.clear();
+        _artistasController.clear();
+        _categoriaCulturalSelecionada = null;
+      }
+    });
+  }
+
+  void _onChangeCategoriaEsportiva(CategoriEspotiva? c) {
+    setState(() {
+      _categoriaEsportivaSelecionada = c;
+
+      // se trocar pra algo que não seja natação, limpa campos de natação
+      if (c != CategoriEspotiva.natacao) {
+        _atletaController.clear();
+        _tempoController.clear();
+        _dataProvaController.clear();
+        _modalidadeNatacaoSelecionada = ModalidadeNatacao.crawl;
+      }
+    });
+  }
+
+  List<String> _parseLista(String raw) {
+    return raw
+        .split(RegExp(r'[;,]'))
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
+  }
+
   Future<void> _salvarSubEvento() async {
-  if (_loading) return;
+    if (_loading) return;
 
-  if (_nomeController.text.trim().isEmpty || _localController.text.trim().isEmpty) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Por favor, preencha nome e local!')),
-    );
-    return;
+    if (_nomeController.text.trim().isEmpty || _localController.text.trim().isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Por favor, preencha nome e local!')),
+      );
+      return;
+    }
+
+    // Em evento "ambos", o tipo é obrigatório.
+    // Em evento só esportivo/cultural, já vem pré-preenchido no initState.
+    if (_tipoSelecionado != Categoria.esportiva && _tipoSelecionado != Categoria.cultural) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Por favor, selecione o tipo do subevento (esportivo ou cultural).')),
+      );
+      return;
+    }
+
+    // Validações específicas
+    if (_tipoSelecionado == Categoria.esportiva) {
+      if (_categoriaEsportivaSelecionada == null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Selecione a categoria esportiva.')),
+        );
+        return;
+      }
+
+      if (_categoriaEsportivaSelecionada == CategoriEspotiva.natacao) {
+        if (_atletaController.text.trim().isEmpty || _tempoController.text.trim().isEmpty) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Para natação, preencha atleta e tempo.')),
+          );
+          return;
+        }
+      }
+    }
+
+    if (_tipoSelecionado == Categoria.cultural) {
+      if (_categoriaCulturalSelecionada == null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Selecione a categoria cultural.')),
+        );
+        return;
+      }
+    }
+
+    final instituicaoId = await ApiService.lerInstituicaoId();
+    if (instituicaoId == null || instituicaoId.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Você precisa estar logado como instituição para criar subevento.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    try {
+      setState(() => _loading = true);
+
+      final dados = <String, dynamic>{
+        'nome': _nomeController.text.trim(),
+        'categoria': (_categoriaSelecionadaTexto ?? '').trim(), // grupo
+        'descricao': _descricaoController.text.trim(),
+        'data': _dataSelecionada.toIso8601String().substring(0, 10),
+        'hora': _formatHora(_horaSelecionada), // IMPORTANTE: no model é hora
+        'local': _localController.text.trim(),
+        'placar': _placarController.text.trim().isEmpty ? null : _placarController.text.trim(),
+        'fotosUrl': _fotosUrlController.text.trim().isEmpty ? null : _fotosUrlController.text.trim(),
+        'videoUrl': _videoUrlController.text.trim().isEmpty ? null : _videoUrlController.text.trim(),
+        'instituicaoId': instituicaoId,
+        'eventoPaiId': widget.eventoPai.id,
+
+        // Novo: tipo do subevento
+        'tipo': _tipoSelecionado!.name,
+      };
+
+      // Campos específicos por tipo
+      if (_tipoSelecionado == Categoria.esportiva) {
+        dados['categoriaEsportiva'] = _categoriaEsportivaSelecionada!.name;
+        if (_generoSelecionado != null) dados['genero'] = _generoSelecionado!.name;
+
+        // NATAÇÃO -> jogoNatacao
+        if (_categoriaEsportivaSelecionada == CategoriEspotiva.natacao) {
+          dados['jogoNatacao'] = {
+            'atleta': _atletaController.text.trim(),
+            'modalidade': _modalidadeNatacaoSelecionada.name,
+            'tempo': _tempoController.text.trim(),
+            // pode usar data da prova separada, senão usa a data do subevento
+            'data': _dataProvaController.text.trim().isNotEmpty
+                ? _dataProvaController.text.trim()
+                : _dataSelecionada.toIso8601String().substring(0, 10),
+          };
+        }
+      }
+
+      if (_tipoSelecionado == Categoria.cultural) {
+        dados['tema'] = _temaController.text.trim().isEmpty ? null : _temaController.text.trim();
+        dados['categoriaCultural'] = _categoriaCulturalSelecionada!.name;
+
+        final artistas = _parseLista(_artistasController.text);
+        if (artistas.isNotEmpty) {
+          dados['artistas'] = artistas; // agora é List<String> no modelo
+        }
+      }
+
+      final criado = await ApiService.criarSubEventoSmart(
+        dados: dados,
+        imagem: _selectedImage,
+      );
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('SubEvento salvo com sucesso!'), backgroundColor: Colors.green),
+      );
+
+      context.pop(criado);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro ao salvar: $e'), backgroundColor: Colors.red),
+      );
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
   }
-
-  final instituicaoId = await ApiService.lerInstituicaoId();
-  if (instituicaoId == null || instituicaoId.isEmpty) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Você precisa estar logado como instituição para criar subevento.'),
-        backgroundColor: Colors.red,
-      ),
-    );
-    return;
-  }
-
-  try {
-    setState(() => _loading = true);
-
-    // dentro de _salvarSubEvento()
-    final dados = <String, dynamic>{
-      'nome': _nomeController.text.trim(),
-      'categoria': (_categoriaSelecionadaTexto ?? '').trim(),
-      'descricao': _descricaoController.text.trim(),
-      'data': _dataSelecionada.toIso8601String().substring(0, 10),
-      'horario': _formatHora(_horaSelecionada),
-      'local': _localController.text.trim(),
-      'placar': _placarController.text.trim(),
-      'fotosUrl': _fotosUrlController.text.trim(),
-      'videoUrl': _videoUrlController.text.trim(),
-      'instituicaoId': instituicaoId,
-      'eventoPaiId': widget.eventoPai.id,
-    };
-
-
-    // IMPORTANTE: retorna Map<String, dynamic>
-    final criado = await ApiService.criarSubEventoSmart(
-      dados: dados,
-      imagem: _selectedImage,
-    );
-
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('SubEvento salvo com sucesso!'), backgroundColor: Colors.green),
-    );
-
-    // <<< em vez de true, retorne o objeto criado:
-    context.pop(criado);
-  } catch (e) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Erro ao salvar: $e'), backgroundColor: Colors.red),
-    );
-  } finally {
-    if (mounted) setState(() => _loading = false);
-  }
-}
-
 
   @override
   Widget build(BuildContext context) {
@@ -243,6 +393,13 @@ class _CadastroSubEventoScreenState extends State<CadastroSubEventoScreen> {
 
     final double maxFormWidth = 500;
     final double horizontalPadding = screenWidth * 0.04;
+
+    // Opções de tipo para subevento:
+    // - Se evento pai é ambos: permitir escolher esportiva/cultural
+    // - Se evento pai é esportiva/cultural: trava na dele
+    final List<Categoria> tiposPermitidos = widget.eventoPai.categoria == Categoria.ambos
+        ? const [Categoria.esportiva, Categoria.cultural]
+        : <Categoria>[widget.eventoPai.categoria];
 
     return Container(
       decoration: BoxDecoration(gradient: backgroundSla),
@@ -371,7 +528,7 @@ class _CadastroSubEventoScreenState extends State<CadastroSubEventoScreen> {
 
                     const SizedBox(height: 14),
 
-                    // Categoria (vindo do state.extra)
+                    // Grupo/categoria textual (vindo do state.extra)
                     DropdownMenu<String>(
                       label: const Text('Categoria'),
                       width: maxFormWidth,
@@ -381,6 +538,102 @@ class _CadastroSubEventoScreenState extends State<CadastroSubEventoScreen> {
                           .map((c) => DropdownMenuEntry<String>(value: c, label: c))
                           .toList(),
                     ),
+
+                    const SizedBox(height: 14),
+
+                    // NOVO: Tipo do SubEvento (esportiva/cultural) - especialmente necessário no evento "ambos"
+                    DropdownMenu<Categoria>(
+                      label: const Text('Tipo do SubEvento'),
+                      width: maxFormWidth,
+                      initialSelection: _tipoSelecionado,
+                      onSelected: (v) => _onChangeTipo(v),
+                      dropdownMenuEntries: tiposPermitidos
+                          .map((t) => DropdownMenuEntry<Categoria>(value: t, label: t.name))
+                          .toList(),
+                    ),
+
+                    const SizedBox(height: 14),
+
+                    // CAMPOS ESPECÍFICOS: ESPORTIVO
+                    if (_tipoSelecionado == Categoria.esportiva) ...[
+                      DropdownMenu<CategoriEspotiva>(
+                        label: const Text('Categoria esportiva'),
+                        width: maxFormWidth,
+                        initialSelection: _categoriaEsportivaSelecionada,
+                        onSelected: (v) => _onChangeCategoriaEsportiva(v),
+                        dropdownMenuEntries: CategoriEspotiva.values
+                            .map((c) => DropdownMenuEntry<CategoriEspotiva>(value: c, label: c.name))
+                            .toList(),
+                      ),
+                      const SizedBox(height: 14),
+                      DropdownMenu<Genero>(
+                        label: const Text('Gênero (opcional)'),
+                        width: maxFormWidth,
+                        initialSelection: _generoSelecionado,
+                        onSelected: (v) => setState(() => _generoSelecionado = v),
+                        dropdownMenuEntries: Genero.values
+                            .map((g) => DropdownMenuEntry<Genero>(value: g, label: g.name))
+                            .toList(),
+                      ),
+
+                      // Se for NATAÇÃO, mostra os inputs específicos do modelo
+                      if (_categoriaEsportivaSelecionada == CategoriEspotiva.natacao) ...[
+                        const SizedBox(height: 14),
+                        TextFormField(
+                          controller: _atletaController,
+                          decoration: const InputDecoration(labelText: 'Atleta'),
+                        ),
+                        const SizedBox(height: 14),
+                        DropdownMenu<ModalidadeNatacao>(
+                          label: const Text('Modalidade'),
+                          width: maxFormWidth,
+                          initialSelection: _modalidadeNatacaoSelecionada,
+                          onSelected: (v) => setState(() {
+                            if (v != null) _modalidadeNatacaoSelecionada = v;
+                          }),
+                          dropdownMenuEntries: ModalidadeNatacao.values
+                              .map((m) => DropdownMenuEntry<ModalidadeNatacao>(value: m, label: m.name))
+                              .toList(),
+                        ),
+                        const SizedBox(height: 14),
+                        TextFormField(
+                          controller: _tempoController,
+                          decoration: const InputDecoration(labelText: 'Tempo (ex: 00:58.32)'),
+                        ),
+                        const SizedBox(height: 14),
+                        TextFormField(
+                          controller: _dataProvaController,
+                          decoration: const InputDecoration(
+                            labelText: 'Data da prova (opcional, AAAA-MM-DD)',
+                          ),
+                        ),
+                      ],
+                    ],
+
+                    // CAMPOS ESPECÍFICOS: CULTURAL
+                    if (_tipoSelecionado == Categoria.cultural) ...[
+                      TextFormField(
+                        controller: _temaController,
+                        decoration: const InputDecoration(labelText: 'Tema (opcional)'),
+                      ),
+                      const SizedBox(height: 14),
+                      DropdownMenu<CategoriaCultural>(
+                        label: const Text('Categoria cultural'),
+                        width: maxFormWidth,
+                        initialSelection: _categoriaCulturalSelecionada,
+                        onSelected: (v) => setState(() => _categoriaCulturalSelecionada = v),
+                        dropdownMenuEntries: CategoriaCultural.values
+                            .map((c) => DropdownMenuEntry<CategoriaCultural>(value: c, label: c.name))
+                            .toList(),
+                      ),
+                      const SizedBox(height: 14),
+                      TextFormField(
+                        controller: _artistasController,
+                        decoration: const InputDecoration(
+                          labelText: 'Artistas (separe por ; ou ,)',
+                        ),
+                      ),
+                    ],
 
                     const SizedBox(height: 14),
 
@@ -456,14 +709,14 @@ class _CadastroSubEventoScreenState extends State<CadastroSubEventoScreen> {
 
                     TextFormField(
                       controller: _fotosUrlController,
-                      decoration: const InputDecoration(labelText: 'Links de Fotos (separe por ; ou vírgula)'),
+                      decoration: const InputDecoration(labelText: 'Links de Fotos (separe por ; ou ,)'),
                     ),
 
                     const SizedBox(height: 14),
 
                     TextFormField(
                       controller: _videoUrlController,
-                      decoration: const InputDecoration(labelText: 'Links de Vídeos (separe por ; ou vírgula)'),
+                      decoration: const InputDecoration(labelText: 'Links de Vídeos (separe por ; ou ,)'),
                     ),
 
                     const SizedBox(height: 24),
