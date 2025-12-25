@@ -26,6 +26,8 @@ class _EventosPageInstitState extends State<EventosPageInstit> {
   Timer? _debounceSalvarCategorias;
   bool _savingCategorias = false;
 
+  bool _actingSubevento = false;
+
   final List<_SubeventoLinha> _linhas = [];
 
   @override
@@ -121,6 +123,100 @@ class _EventosPageInstitState extends State<EventosPageInstit> {
   }
 
   // ===========================
+  // LONG PRESS SUBEVENTO (EDIT/DELETE)
+  // ===========================
+
+  Future<void> _onLongPressSubevento(SubEvento sub) async {
+    if (_actingSubevento) return;
+
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.edit),
+                title: const Text('Editar subevento'),
+                onTap: () => Navigator.pop(ctx, 'edit'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete, color: Colors.red),
+                title: const Text('Apagar subevento'),
+                onTap: () => Navigator.pop(ctx, 'delete'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (!mounted || action == null) return;
+
+    if (action == 'edit') {
+      final categorias = _linhas
+          .map((l) => l.controller.text.trim())
+          .where((t) => t.isNotEmpty)
+          .toList();
+
+      final result = await context.push(
+        '/editar_subevento',
+        extra: {
+          'eventoPai': _evento,
+          'subevento': sub,
+          'categorias': categorias,
+        },
+      );
+
+      if (!mounted) return;
+      if (result != null) {
+        _changed = true;
+        await _carregarSubeventosDoBackend();
+      }
+      return;
+    }
+
+    if (action == 'delete') {
+      await _apagarSubevento(sub);
+    }
+  }
+
+  Future<void> _apagarSubevento(SubEvento sub) async {
+    final id = sub.id;
+    if (id.trim().isEmpty) return;
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Apagar subevento?'),
+        content: const Text('Essa ação não pode ser desfeita.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Apagar')),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    try {
+      setState(() => _actingSubevento = true);
+      await ApiService.deletarSubEvento(id);
+      _changed = true;
+      await _carregarSubeventosDoBackend();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro ao apagar subevento: $e'), backgroundColor: Colors.red),
+      );
+    } finally {
+      if (mounted) setState(() => _actingSubevento = false);
+    }
+  }
+
+  // ===========================
   // HELPERS (nomes únicos / validação)
   // ===========================
 
@@ -140,10 +236,7 @@ class _EventosPageInstitState extends State<EventosPageInstit> {
   }
 
   bool _temDuplicatasIgnorandoCase() {
-    final titulos = _linhas
-        .map((l) => l.controller.text.trim())
-        .where((t) => t.isNotEmpty)
-        .toList();
+    final titulos = _linhas.map((l) => l.controller.text.trim()).where((t) => t.isNotEmpty).toList();
 
     final seen = <String>{};
     for (final t in titulos) {
@@ -165,10 +258,7 @@ class _EventosPageInstitState extends State<EventosPageInstit> {
   }
 
   List<String> _titulosCategoriasUi() {
-    return _linhas
-        .map((l) => l.controller.text.trim())
-        .where((t) => t.isNotEmpty)
-        .toList();
+    return _linhas.map((l) => l.controller.text.trim()).where((t) => t.isNotEmpty).toList();
   }
 
   Future<void> _salvarCategoriasAgora() async {
@@ -177,7 +267,6 @@ class _EventosPageInstitState extends State<EventosPageInstit> {
     final eventoId = _evento.id;
     if (eventoId == null || eventoId.isEmpty) return;
 
-    // não salva se estiver duplicado; isso causa efeitos colaterais no rename
     if (_temDuplicatasIgnorandoCase()) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -245,7 +334,7 @@ class _EventosPageInstitState extends State<EventosPageInstit> {
   // ===========================
 
   Future<void> _renomearCategoria(_SubeventoLinha linha, String novoTitulo) async {
-    if (_savingCategorias) return; // guarda simples contra duplo submit (focus + onSubmitted)
+    if (_savingCategorias) return;
 
     final novo = novoTitulo.trim();
     final antigo = linha.tituloSalvo.trim();
@@ -255,12 +344,10 @@ class _EventosPageInstitState extends State<EventosPageInstit> {
       return;
     }
     if (antigo.isNotEmpty && novo.toLowerCase() == antigo.toLowerCase()) {
-      // garante controller “limpo”
       linha.controller.text = novo;
       return;
     }
 
-    // bloquear duplicata (senão “funde” categorias)
     final novoKey = novo.toLowerCase();
     final existeOutroIgual = _linhas.any((l) {
       if (identical(l, linha)) return false;
@@ -293,7 +380,6 @@ class _EventosPageInstitState extends State<EventosPageInstit> {
         nova: novo,
       );
 
-      // atualiza estado local da linha
       linha.tituloSalvo = novo;
       linha.controller.text = novo;
 
@@ -495,6 +581,7 @@ class _EventosPageInstitState extends State<EventosPageInstit> {
                                     _changed = true;
                                   },
                                   onTituloSubmitted: (txt) => _renomearCategoria(_linhas[i], txt),
+                                  onLongPressSubevento: _onLongPressSubevento,
                                 ),
                               );
                             }),
@@ -529,7 +616,7 @@ class _EventosPageInstitState extends State<EventosPageInstit> {
                 ),
               ),
             ),
-            if (_savingCategorias)
+            if (_savingCategorias || _actingSubevento)
               const Positioned.fill(
                 child: ColoredBox(
                   color: Color(0x55000000),
@@ -551,6 +638,8 @@ class _LinhaSubeventos extends StatelessWidget {
   final ValueChanged<String> onTituloChanged;
   final ValueChanged<String> onTituloSubmitted;
 
+  final void Function(SubEvento sub) onLongPressSubevento;
+
   const _LinhaSubeventos({
     required this.linha,
     required this.canDelete,
@@ -558,6 +647,7 @@ class _LinhaSubeventos extends StatelessWidget {
     required this.onDelete,
     required this.onTituloChanged,
     required this.onTituloSubmitted,
+    required this.onLongPressSubevento,
   });
 
   @override
@@ -627,8 +717,16 @@ class _LinhaSubeventos extends StatelessWidget {
             separatorBuilder: (_, __) => const SizedBox(width: 12),
             itemBuilder: (context, index) {
               if (index == 0) return _AddCard(onTap: onTapAdd);
+
               final sub = linha.subeventos[index - 1];
-              return SubEventoCardComponent(subevento: sub);
+
+              return Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onLongPress: () => onLongPressSubevento(sub),
+                  child: SubEventoCardComponent(subevento: sub),
+                ),
+              );
             },
           ),
         ),

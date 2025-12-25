@@ -10,11 +10,16 @@ router.get('/:id', subeventosController.obterSubEvento);
 
 router.post(
   '/',
-  upload.single('imagem'), // opcional; se não for enviar imagem, ainda funciona
+  upload.single('imagem'),
   subeventosController.criarSubEvento
 );
 
-router.put('/:id', subeventosController.atualizarSubEvento);
+router.put(
+  '/:id',
+  upload.single('imagem'),
+  subeventosController.atualizarSubEvento
+);
+
 router.delete('/:id', subeventosController.deletarSubEvento);
 
 module.exports = router;

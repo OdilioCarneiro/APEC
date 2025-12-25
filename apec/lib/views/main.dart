@@ -21,6 +21,7 @@ import 'package:apec/views/instituicao/insituit_page.dart';
 import 'package:apec/views/instituicao/CadasInstPage.dart';
 import 'package:apec/views/cadastro_subevento_page.dart';
 import 'package:apec/views/instituicao/edit_inst_page.dart';
+import 'package:apec/views/editar_subevento_page.dart';
 
 import 'package:apec/pages/components/tabview.dart';
 
@@ -46,38 +47,37 @@ final GoRouter _router = GoRouter(
       builder: (context, state) => const SegundaTela(),
     ),
 
-    // LOGIN FORA DO SHELL (para não aparecer Tabview no login)
-    GoRoute(
-      path: '/login',
-      builder: (context, state) => const InstitPage(),
-      routes: [
-        GoRoute(
-          path: 'editar_evento',
-          builder: (context, state) {
-            final evento = state.extra as Evento;
-            return EditarEventoPage(evento: evento);
-          },
-        ),
-        GoRoute(
-          path: 'cadastro_instituicao',
-          builder: (context, state) => const CadasInstPage(),
-        ),
-
-        // CORRETO: rota filha sem começar com "/"
-        GoRoute(
-          path: 'edit_inst_page',
-          builder: (context, state) {
-            final initial = state.extra as Map<String, dynamic>?;
-            return EditarInstPage(initial: initial);
-          },
-        ),
-      ],
-    ),
 
     // Shell com Tabview
     ShellRoute(
       builder: (context, state, child) => Tabview(child: child),
       routes: [
+        GoRoute(
+          path: '/login',
+          builder: (context, state) => const InstitPage(),
+          routes: [
+            GoRoute(
+              path: 'editar_evento',
+              builder: (context, state) {
+                final evento = state.extra as Evento;
+                return EditarEventoPage(evento: evento);
+              },
+            ),
+            GoRoute(
+              path: 'cadastro_instituicao',
+              builder: (context, state) => const CadasInstPage(),
+            ),
+
+            // CORRETO: rota filha sem começar com "/"
+            GoRoute(
+              path: 'edit_inst_page',
+              builder: (context, state) {
+                final initial = state.extra as Map<String, dynamic>?;
+                return EditarInstPage(initial: initial);
+              },
+            ),
+          ],
+        ),
         GoRoute(
           path: '/home',
           builder: (context, state) => const HomePage(),
@@ -112,6 +112,18 @@ final GoRouter _router = GoRouter(
             );
           },
         ),
+        GoRoute(
+          path: '/editar_subevento',
+          builder: (context, state) {
+            final extra = state.extra as Map<String, dynamic>;
+            return EditarSubEventoPage(
+              eventoPai: extra['eventoPai'] as Evento,
+              subevento: extra['subevento'] as SubEvento,
+              categorias: (extra['categorias'] as List).cast<String>(),
+            );
+          },
+        ),
+
 
         GoRoute(
           path: '/evento',

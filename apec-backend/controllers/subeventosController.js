@@ -75,7 +75,17 @@ exports.criarSubEvento = async (req, res) => {
 
 exports.atualizarSubEvento = async (req, res) => {
   try {
-    const atualizado = await SubEvento.findByIdAndUpdate(req.params.id, req.body, {
+    const dados = { ...req.body };
+
+    // padroniza: se vier "hora", salva em "horario" (seu model/POST usa "horario")
+    if (!dados.horario && dados.hora) dados.horario = dados.hora;
+
+    // se veio arquivo, atualiza a imagem
+    if (req.file) {
+      dados.imagem = req.file.path;
+    }
+
+    const atualizado = await SubEvento.findByIdAndUpdate(req.params.id, dados, {
       new: true,
       runValidators: true,
     })
@@ -88,6 +98,7 @@ exports.atualizarSubEvento = async (req, res) => {
     return res.status(400).json({ erro: 'Erro ao atualizar subevento', detalhes: error.message });
   }
 };
+
 
 exports.deletarSubEvento = async (req, res) => {
   try {
