@@ -4,6 +4,9 @@ import 'package:image_picker/image_picker.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:go_router/go_router.dart';
 import 'package:apec/services/api_service.dart';
+import 'package:image_cropper/image_cropper.dart';
+import 'package:apec/pages/components/image_pick_crop.dart';
+
 
 final Gradient backgroundSla = const LinearGradient(
   begin: Alignment.topCenter,
@@ -37,7 +40,6 @@ class _EditarInstPageState extends State<EditarInstPage> {
   String? _imagemUrlAtual;
 
   File? _imageFile;
-  final ImagePicker _picker = ImagePicker();
   bool _loading = false;
   bool _deleting = false;
 
@@ -73,10 +75,18 @@ class _EditarInstPageState extends State<EditarInstPage> {
   }
 
   Future<void> _pickImage() async {
-    final picked = await _picker.pickImage(source: ImageSource.gallery);
-    if (picked == null) return;
-    setState(() => _imageFile = File(picked.path));
+    final file = await ImagePickCrop.pickAndCrop(
+      context: context,
+      source: ImageSource.gallery,
+      cropStyle: CropStyle.circle,
+      presets: const [CropAspectRatioPreset.square],
+      lockedRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
+    );
+
+    if (file == null) return;
+    setState(() => _imageFile = file);
   }
+
 
   void _snack(String msg, {Color? bg}) {
     if (!mounted) return;

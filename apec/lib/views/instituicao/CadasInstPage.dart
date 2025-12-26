@@ -1,6 +1,8 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:image_cropper/image_cropper.dart';
+import 'package:apec/pages/components/image_pick_crop.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:apec/services/api_service.dart';
 import 'package:go_router/go_router.dart'; // NECESSÁRIO pro context.pop()
@@ -33,7 +35,6 @@ class _CadasInstPageState extends State<CadasInstPage> {
   final _confirmarSenhaController = TextEditingController();
 
   File? _imageFile;
-  final ImagePicker _picker = ImagePicker();
   bool _loading = false;
 
   @override
@@ -47,11 +48,20 @@ class _CadasInstPageState extends State<CadasInstPage> {
     super.dispose();
   }
 
-  Future<void> _pickImage() async {
-    final picked = await _picker.pickImage(source: ImageSource.gallery);
-    if (picked == null) return;
-    setState(() => _imageFile = File(picked.path));
-  }
+Future<void> _pickImage() async {
+  final file = await ImagePickCrop.pickAndCrop(
+    context: context,
+    source: ImageSource.gallery,
+    cropStyle: CropStyle.circle,
+    presets: const [CropAspectRatioPreset.square],
+    lockedRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
+  );
+
+  if (file == null) return;
+  setState(() => _imageFile = file);
+}
+
+
 
   void _snack(String msg, {Color? bg}) {
     if (!mounted) return;
@@ -59,6 +69,7 @@ class _CadasInstPageState extends State<CadasInstPage> {
       SnackBar(content: Text(msg), backgroundColor: bg),
     );
   }
+
 
   InputDecoration _fieldDecoration(String hint) {
     return InputDecoration(

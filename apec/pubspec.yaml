@@ -41,6 +41,7 @@ dependencies:
   go_router: ^16.2.5
   curved_navigation_bar: ^1.0.6
   image_picker: ^1.2.1
+  image_cropper: ^11.0.0
   dotted_border: ^3.1.0
   url_launcher: ^6.3.0
   intl: ^0.20.2

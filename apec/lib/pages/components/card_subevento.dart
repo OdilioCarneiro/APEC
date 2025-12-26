@@ -330,7 +330,7 @@ class SubEventoCardComponent extends StatelessWidget {
                                     _infoRow(Icons.topic_outlined, (s.tema ?? '').trim()),
                                   if ((s.tema ?? '').trim().isNotEmpty) const SizedBox(height: 8),
                                   if ((s.artistas ?? const <String>[]).isNotEmpty)
-                                    _infoRow(Icons.mic_none_outlined, (s.artistas ?? []).join(', ')),
+                                    _infoRow(Icons.people_outlined, (s.artistas ?? []).join(', ')),
                                 ],
                               ),
                             ),

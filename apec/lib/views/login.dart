@@ -51,7 +51,7 @@ class _LoginScreenState extends State<LoginScreen> {
       await ApiService.loginInstituicao(email: emailText, senha: senhaText);
 
       if (!mounted) return;
-      context.go('/perfil_instituicao'); // <- vai pra tela da instituição
+      context.go('/login/perfil_instituicao'); // <- vai pra tela da instituição
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

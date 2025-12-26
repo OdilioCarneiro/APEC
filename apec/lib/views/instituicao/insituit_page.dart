@@ -77,7 +77,7 @@ class _PerfilInstituicaoPageState extends State<PerfilInstituicaoPage> {
   }
 
   Future<void> _abrirCadastroEvento() async {
-    await context.push('/cadastro_evento');
+    await context.push('/login/cadastro_evento');
     if (!mounted) return;
     await _carregarEventos();
   }

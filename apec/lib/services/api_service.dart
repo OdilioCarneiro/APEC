@@ -211,6 +211,17 @@ class ApiService {
     return obterInstituicaoPorId(id);
   }
 
+  static Future<List<dynamic>> listarInstituicoes() async {
+    final response = await http.get(_uri('/instituicoes')).timeout(_timeout);
+
+    if (response.statusCode == 200) {
+      return _decodeList(response);
+    }
+
+    _throwHttp(response, 'Erro ao listar instituições');
+  }
+
+
   // EVENTOS
 
   static Future<List<dynamic>> listarEventos() async {

@@ -4,9 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_cropper/image_cropper.dart';
+import 'package:apec/pages/components/image_pick_crop.dart';
 
 import 'package:apec/pages/data/model.dart';
 import 'package:apec/services/api_service.dart';
+
 
 final Gradient backgroundSla = const LinearGradient(
   begin: Alignment.topCenter,
@@ -177,15 +180,22 @@ class _CadastroSubEventoScreenState extends State<CadastroSubEventoScreen> {
     return '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
   }
 
-  Future<void> _pickPhoto() async {
-    final picker = ImagePicker();
-    final XFile? img = await picker.pickImage(source: ImageSource.gallery);
-    if (img == null) return;
-    setState(() {
-      _selectedImage = File(img.path);
-      _imagemController.text = img.path;
-    });
-  }
+Future<void> _pickPhoto() async {
+  final file = await ImagePickCrop.pickAndCrop(
+    context: context,
+    source: ImageSource.gallery,
+    cropStyle: CropStyle.rectangle,
+    presets: const [CropAspectRatioPreset.ratio16x9],
+    lockedRatio: const CropAspectRatio(ratioX: 16, ratioY: 9),
+  );
+
+  if (file == null) return;
+  setState(() {
+    _selectedImage = file;
+    _imagemController.text = file.path;
+  });
+}
+
 
   Future<void> _selectDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(

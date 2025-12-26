@@ -5,6 +5,9 @@ import 'dart:io';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:apec/services/api_service.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_cropper/image_cropper.dart';
+import 'package:apec/pages/components/image_pick_crop.dart';
+
 
 class Cadastro extends StatelessWidget {
   const Cadastro({super.key});
@@ -75,14 +78,22 @@ class _CadastroEventoScreenState extends State<CadastroEventoScreen> {
   }
 
   Future<void> _pickPhoto() async {
-    final picker = ImagePicker();
-    final XFile? img = await picker.pickImage(source: ImageSource.gallery);
-    if (img == null) return;
-    setState(() {
-      _selectedImage = File(img.path);
-      _imagemController.text = img.path;
-    });
-  }
+  final file = await ImagePickCrop.pickAndCrop(
+    context: context,
+    source: ImageSource.gallery,
+    cropStyle: CropStyle.rectangle,
+    presets: const [CropAspectRatioPreset.ratio16x9],
+    lockedRatio: const CropAspectRatio(ratioX: 16, ratioY: 9),
+  );
+
+  if (file == null) return;
+
+  setState(() {
+    _selectedImage = file;
+    _imagemController.text = file.path;
+  });
+}
+
 
   Future<void> _selectDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(

@@ -162,7 +162,7 @@ class _EventosPageInstitState extends State<EventosPageInstit> {
           .toList();
 
       final result = await context.push(
-        '/editar_subevento',
+        '/login/editar_subevento',
         extra: {
           'eventoPai': _evento,
           'subevento': sub,
