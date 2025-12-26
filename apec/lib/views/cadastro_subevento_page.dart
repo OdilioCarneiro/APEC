@@ -92,6 +92,10 @@ class _CadastroSubEventoScreenState extends State<CadastroSubEventoScreen> {
   final _fotosUrlController = TextEditingController();
   final _videoUrlController = TextEditingController();
 
+  // ===== NOVO: controllers extra URLs =====
+  final _inscricaoUrlController = TextEditingController();
+  final _resultadoUrlController = TextEditingController();
+
   // ===== controllers cultural =====
   final _temaController = TextEditingController();
   final _artistasController = TextEditingController();
@@ -99,7 +103,7 @@ class _CadastroSubEventoScreenState extends State<CadastroSubEventoScreen> {
   // ===== controllers natacao (jogoNatacao) =====
   final _atletaController = TextEditingController();
   final _tempoController = TextEditingController();
-  final _dataProvaController = TextEditingController(); // opcional: se quiser data diferente da do subevento
+  final _dataProvaController = TextEditingController(); // opcional
 
   // ===== selections =====
   String? _categoriaSelecionadaTexto;
@@ -125,16 +129,15 @@ class _CadastroSubEventoScreenState extends State<CadastroSubEventoScreen> {
     _horaController.text = _formatHora(_horaSelecionada);
 
     final inicial = widget.categoriaInicial.trim();
-    _categoriaSelecionadaTexto = inicial.isNotEmpty
-        ? inicial
-        : (widget.categorias.isNotEmpty ? widget.categorias.first : 'Nova categoria');
+    _categoriaSelecionadaTexto =
+        inicial.isNotEmpty ? inicial : (widget.categorias.isNotEmpty ? widget.categorias.first : 'Nova categoria');
 
     if (widget.categorias.isNotEmpty && !widget.categorias.contains(_categoriaSelecionadaTexto)) {
       _categoriaSelecionadaTexto = widget.categorias.first;
     }
 
-    // Heurística boa: se o evento pai é esportiva/cultural, já pré-seleciona o tipo.
-    // Se for ambos, deixa null para a pessoa escolher.
+    // Heurística: se o evento pai é esportiva/cultural, já pré-seleciona o tipo.
+    // Se for ambos, deixa null para escolher.
     if (widget.eventoPai.categoria == Categoria.esportiva) {
       _tipoSelecionado = Categoria.esportiva;
     } else if (widget.eventoPai.categoria == Categoria.cultural) {
@@ -155,6 +158,10 @@ class _CadastroSubEventoScreenState extends State<CadastroSubEventoScreen> {
     _placarController.dispose();
     _fotosUrlController.dispose();
     _videoUrlController.dispose();
+
+    // NOVO
+    _inscricaoUrlController.dispose();
+    _resultadoUrlController.dispose();
 
     _temaController.dispose();
     _artistasController.dispose();
@@ -213,7 +220,6 @@ class _CadastroSubEventoScreenState extends State<CadastroSubEventoScreen> {
     setState(() {
       _tipoSelecionado = tipo;
 
-      // reset campos do outro tipo para não “vazar” dado
       if (tipo == Categoria.cultural) {
         _categoriaEsportivaSelecionada = null;
         _generoSelecionado = null;
@@ -233,7 +239,6 @@ class _CadastroSubEventoScreenState extends State<CadastroSubEventoScreen> {
     setState(() {
       _categoriaEsportivaSelecionada = c;
 
-      // se trocar pra algo que não seja natação, limpa campos de natação
       if (c != CategoriEspotiva.natacao) {
         _atletaController.clear();
         _tempoController.clear();
@@ -262,8 +267,6 @@ class _CadastroSubEventoScreenState extends State<CadastroSubEventoScreen> {
       return;
     }
 
-    // Em evento "ambos", o tipo é obrigatório.
-    // Em evento só esportivo/cultural, já vem pré-preenchido no initState.
     if (_tipoSelecionado != Categoria.esportiva && _tipoSelecionado != Categoria.cultural) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -272,7 +275,6 @@ class _CadastroSubEventoScreenState extends State<CadastroSubEventoScreen> {
       return;
     }
 
-    // Validações específicas
     if (_tipoSelecionado == Categoria.esportiva) {
       if (_categoriaEsportivaSelecionada == null) {
         if (!mounted) return;
@@ -323,30 +325,31 @@ class _CadastroSubEventoScreenState extends State<CadastroSubEventoScreen> {
         'categoria': (_categoriaSelecionadaTexto ?? '').trim(), // grupo
         'descricao': _descricaoController.text.trim(),
         'data': _dataSelecionada.toIso8601String().substring(0, 10),
-        'hora': _formatHora(_horaSelecionada), // IMPORTANTE: no model é hora
+        'hora': _formatHora(_horaSelecionada),
         'local': _localController.text.trim(),
         'placar': _placarController.text.trim().isEmpty ? null : _placarController.text.trim(),
         'fotosUrl': _fotosUrlController.text.trim().isEmpty ? null : _fotosUrlController.text.trim(),
         'videoUrl': _videoUrlController.text.trim().isEmpty ? null : _videoUrlController.text.trim(),
+
+        // NOVO
+        'inscricaoUrl': _inscricaoUrlController.text.trim().isEmpty ? null : _inscricaoUrlController.text.trim(),
+        'resultadoUrl': _resultadoUrlController.text.trim().isEmpty ? null : _resultadoUrlController.text.trim(),
+
         'instituicaoId': instituicaoId,
         'eventoPaiId': widget.eventoPai.id,
 
-        // Novo: tipo do subevento
         'tipo': _tipoSelecionado!.name,
       };
 
-      // Campos específicos por tipo
       if (_tipoSelecionado == Categoria.esportiva) {
         dados['categoriaEsportiva'] = _categoriaEsportivaSelecionada!.name;
         if (_generoSelecionado != null) dados['genero'] = _generoSelecionado!.name;
 
-        // NATAÇÃO -> jogoNatacao
         if (_categoriaEsportivaSelecionada == CategoriEspotiva.natacao) {
           dados['jogoNatacao'] = {
             'atleta': _atletaController.text.trim(),
             'modalidade': _modalidadeNatacaoSelecionada.name,
             'tempo': _tempoController.text.trim(),
-            // pode usar data da prova separada, senão usa a data do subevento
             'data': _dataProvaController.text.trim().isNotEmpty
                 ? _dataProvaController.text.trim()
                 : _dataSelecionada.toIso8601String().substring(0, 10),
@@ -359,9 +362,7 @@ class _CadastroSubEventoScreenState extends State<CadastroSubEventoScreen> {
         dados['categoriaCultural'] = _categoriaCulturalSelecionada!.name;
 
         final artistas = _parseLista(_artistasController.text);
-        if (artistas.isNotEmpty) {
-          dados['artistas'] = artistas; // agora é List<String> no modelo
-        }
+        if (artistas.isNotEmpty) dados['artistas'] = artistas;
       }
 
       final criado = await ApiService.criarSubEventoSmart(
@@ -394,9 +395,6 @@ class _CadastroSubEventoScreenState extends State<CadastroSubEventoScreen> {
     final double maxFormWidth = 500;
     final double horizontalPadding = screenWidth * 0.04;
 
-    // Opções de tipo para subevento:
-    // - Se evento pai é ambos: permitir escolher esportiva/cultural
-    // - Se evento pai é esportiva/cultural: trava na dele
     final List<Categoria> tiposPermitidos = widget.eventoPai.categoria == Categoria.ambos
         ? const [Categoria.esportiva, Categoria.cultural]
         : <Categoria>[widget.eventoPai.categoria];
@@ -422,7 +420,6 @@ class _CadastroSubEventoScreenState extends State<CadastroSubEventoScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const SizedBox(height: 20),
-
                     const Text(
                       'Foto do SubEvento',
                       style: TextStyle(
@@ -432,7 +429,6 @@ class _CadastroSubEventoScreenState extends State<CadastroSubEventoScreen> {
                       ),
                     ),
                     const SizedBox(height: 8),
-
                     GestureDetector(
                       onTap: _pickPhoto,
                       child: AspectRatio(
@@ -528,33 +524,27 @@ class _CadastroSubEventoScreenState extends State<CadastroSubEventoScreen> {
 
                     const SizedBox(height: 14),
 
-                    // Grupo/categoria textual (vindo do state.extra)
                     DropdownMenu<String>(
                       label: const Text('Categoria'),
                       width: maxFormWidth,
                       initialSelection: _categoriaSelecionadaTexto,
                       onSelected: (v) => setState(() => _categoriaSelecionadaTexto = v),
-                      dropdownMenuEntries: widget.categorias
-                          .map((c) => DropdownMenuEntry<String>(value: c, label: c))
-                          .toList(),
+                      dropdownMenuEntries: widget.categorias.map((c) => DropdownMenuEntry<String>(value: c, label: c)).toList(),
                     ),
 
                     const SizedBox(height: 14),
 
-                    // NOVO: Tipo do SubEvento (esportiva/cultural) - especialmente necessário no evento "ambos"
                     DropdownMenu<Categoria>(
                       label: const Text('Tipo do SubEvento'),
                       width: maxFormWidth,
                       initialSelection: _tipoSelecionado,
                       onSelected: (v) => _onChangeTipo(v),
-                      dropdownMenuEntries: tiposPermitidos
-                          .map((t) => DropdownMenuEntry<Categoria>(value: t, label: t.name))
-                          .toList(),
+                      dropdownMenuEntries:
+                          tiposPermitidos.map((t) => DropdownMenuEntry<Categoria>(value: t, label: t.name)).toList(),
                     ),
 
                     const SizedBox(height: 14),
 
-                    // CAMPOS ESPECÍFICOS: ESPORTIVO
                     if (_tipoSelecionado == Categoria.esportiva) ...[
                       DropdownMenu<CategoriEspotiva>(
                         label: const Text('Categoria esportiva'),
@@ -571,12 +561,8 @@ class _CadastroSubEventoScreenState extends State<CadastroSubEventoScreen> {
                         width: maxFormWidth,
                         initialSelection: _generoSelecionado,
                         onSelected: (v) => setState(() => _generoSelecionado = v),
-                        dropdownMenuEntries: Genero.values
-                            .map((g) => DropdownMenuEntry<Genero>(value: g, label: g.name))
-                            .toList(),
+                        dropdownMenuEntries: Genero.values.map((g) => DropdownMenuEntry<Genero>(value: g, label: g.name)).toList(),
                       ),
-
-                      // Se for NATAÇÃO, mostra os inputs específicos do modelo
                       if (_categoriaEsportivaSelecionada == CategoriEspotiva.natacao) ...[
                         const SizedBox(height: 14),
                         TextFormField(
@@ -610,7 +596,6 @@ class _CadastroSubEventoScreenState extends State<CadastroSubEventoScreen> {
                       ],
                     ],
 
-                    // CAMPOS ESPECÍFICOS: CULTURAL
                     if (_tipoSelecionado == Categoria.cultural) ...[
                       TextFormField(
                         controller: _temaController,
@@ -717,6 +702,19 @@ class _CadastroSubEventoScreenState extends State<CadastroSubEventoScreen> {
                     TextFormField(
                       controller: _videoUrlController,
                       decoration: const InputDecoration(labelText: 'Links de Vídeos (separe por ; ou ,)'),
+                    ),
+
+                    // NOVO
+                    const SizedBox(height: 14),
+                    TextFormField(
+                      controller: _inscricaoUrlController,
+                      decoration: const InputDecoration(labelText: 'Link de Inscrição (opcional)'),
+                    ),
+
+                    const SizedBox(height: 14),
+                    TextFormField(
+                      controller: _resultadoUrlController,
+                      decoration: const InputDecoration(labelText: 'Link de Resultados (opcional)'),
                     ),
 
                     const SizedBox(height: 24),

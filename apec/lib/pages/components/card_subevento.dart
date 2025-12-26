@@ -51,8 +51,8 @@ class SubEventoCardComponent extends StatelessWidget {
   }
 
   Color _tipoColor(Categoria? tipo) {
-    if (tipo == Categoria.esportiva) return const Color(0xFF1565C0);
-    if (tipo == Categoria.cultural) return const Color(0xFF6A1B9A);
+    if (tipo == Categoria.esportiva) return const Color.fromARGB(255, 192, 192, 21);
+    if (tipo == Categoria.cultural) return const Color.fromARGB(255, 154, 27, 27);
     return const Color(0xFF455A64);
   }
 
@@ -122,9 +122,7 @@ class SubEventoCardComponent extends StatelessWidget {
     );
   }
 
-  Widget _sectionCard({
-    required Widget child,
-  }) {
+  Widget _sectionCard({required Widget child}) {
     return Card(
       elevation: 0,
       color: const Color(0xFFF6F7F8),
@@ -185,29 +183,39 @@ class SubEventoCardComponent extends StatelessWidget {
     final fotosLinks = _splitLinks(s.fotosUrl);
     final videoLinks = _splitLinks(s.videoUrl);
 
+    // NOVO: links únicos
+    final inscricaoLink = (s.inscricaoUrl ?? '').trim();
+    final resultadoLink = (s.resultadoUrl ?? '').trim();
+
     final data = _dataBr(s.data);
     final hora = _horaBr(s.hora);
     final dataHora = hora.isEmpty ? data : '$data • $hora';
 
-    final tipo = s.tipo; // novo modelo
+    final tipo = s.tipo;
     final tipoColor = _tipoColor(tipo);
 
     showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
       useSafeArea: true,
       backgroundColor: Colors.transparent,
-      showDragHandle: true, // Material 3 [web:71]
+
+      // antes estava 100% transparente; com scrim leve fica melhor [web:66]
+      barrierColor: const Color(0x66000000),
+
+      showDragHandle: false,
       builder: (ctx) {
         return DraggableScrollableSheet(
-          initialChildSize: 0.78,
+          initialChildSize: 1,
           minChildSize: 0.45,
-          maxChildSize: 0.94,
+          maxChildSize: 1,
           builder: (ctx, scrollController) {
             return ClipRRect(
               borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
               child: Material(
                 color: Colors.white,
+                surfaceTintColor: Colors.transparent,
                 child: ListView(
                   controller: scrollController,
                   padding: EdgeInsets.zero,
@@ -236,34 +244,24 @@ class SubEventoCardComponent extends StatelessWidget {
                             spacing: 8,
                             runSpacing: 8,
                             children: [
-                              _chip(
-                                icon: _tipoIcon(tipo),
-                                label: _tipoLabel(tipo),
-                                color: tipoColor,
-                              ),
-                              if ((s.categoria ?? '').trim().isNotEmpty)
-                                _chip(
-                                  icon: Icons.label_outline,
-                                  label: (s.categoria ?? '').trim(),
-                                  color: const Color(0xFF455A64),
-                                ),
+                              _chip(icon: _tipoIcon(tipo), label: _tipoLabel(tipo), color: tipoColor),
                               if ((s.categoriaEsportiva != null) && tipo == Categoria.esportiva)
                                 _chip(
                                   icon: Icons.sports,
                                   label: s.categoriaEsportiva!.name,
-                                  color: const Color(0xFF1565C0),
+                                  color: const Color.fromARGB(255, 192, 186, 21),
                                 ),
                               if ((s.categoriaCultural != null) && tipo == Categoria.cultural)
                                 _chip(
                                   icon: Icons.palette_outlined,
                                   label: s.categoriaCultural!.name,
-                                  color: const Color(0xFF6A1B9A),
+                                  color: const Color.fromARGB(255, 154, 27, 27),
                                 ),
                               if ((s.genero != null) && tipo == Categoria.esportiva)
                                 _chip(
                                   icon: Icons.person_outline,
                                   label: s.genero!.name,
-                                  color: const Color(0xFF1565C0),
+                                  color: const Color.fromARGB(255, 192, 186, 21),
                                 ),
                             ],
                           ),
@@ -312,7 +310,6 @@ class SubEventoCardComponent extends StatelessWidget {
                             ),
                           ],
 
-                          // CULTURAL
                           if (tipo == Categoria.cultural) ...[
                             const SizedBox(height: 12),
                             _sectionCard(
@@ -339,7 +336,6 @@ class SubEventoCardComponent extends StatelessWidget {
                             ),
                           ],
 
-                          // ESPORTIVO
                           if (tipo == Categoria.esportiva) ...[
                             const SizedBox(height: 12),
                             _sectionCard(
@@ -356,11 +352,8 @@ class SubEventoCardComponent extends StatelessWidget {
                                     ),
                                   ),
                                   const SizedBox(height: 8),
-
                                   if ((s.placar ?? '').trim().isNotEmpty)
                                     _infoRow(Icons.emoji_events_outlined, (s.placar ?? '').trim()),
-
-                                  // NATAÇÃO (novo modelo)
                                   if (s.jogoNatacao != null) ...[
                                     if ((s.placar ?? '').trim().isNotEmpty) const SizedBox(height: 10),
                                     _infoRow(Icons.person_outline, 'Atleta: ${s.jogoNatacao!.atleta}'),
@@ -370,16 +363,20 @@ class SubEventoCardComponent extends StatelessWidget {
                                     _infoRow(Icons.timer_outlined, 'Tempo: ${s.jogoNatacao!.tempo}'),
                                     if (s.jogoNatacao!.data.trim().isNotEmpty) ...[
                                       const SizedBox(height: 8),
-                                      _infoRow(Icons.calendar_today_outlined, 'Data da prova: ${_dataBr(s.jogoNatacao!.data)}'),
+                                      _infoRow(
+                                        Icons.calendar_today_outlined,
+                                        'Data da prova: ${_dataBr(s.jogoNatacao!.data)}',
+                                      ),
                                     ],
                                   ],
-
-                                  // JOGO genérico (se você usar em futebol/basquete etc.)
                                   if (s.jogo != null) ...[
                                     const SizedBox(height: 10),
                                     _infoRow(Icons.groups_2_outlined, '${s.jogo!.timeA} vs ${s.jogo!.timeB}'),
                                     const SizedBox(height: 8),
-                                    _infoRow(Icons.scoreboard_outlined, 'Placar: ${s.jogo!.placarA} x ${s.jogo!.placarB}'),
+                                    _infoRow(
+                                      Icons.scoreboard_outlined,
+                                      'Placar: ${s.jogo!.placarA} x ${s.jogo!.placarB}',
+                                    ),
                                     const SizedBox(height: 8),
                                     _infoRow(Icons.place_outlined, 'Local: ${s.jogo!.local}'),
                                   ],
@@ -390,6 +387,7 @@ class SubEventoCardComponent extends StatelessWidget {
 
                           const SizedBox(height: 12),
 
+                          // LINKS (agora com inscrição e resultado)
                           _sectionCard(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -403,32 +401,56 @@ class SubEventoCardComponent extends StatelessWidget {
                                     color: Color(0xFF263238),
                                   ),
                                 ),
-                                const SizedBox(height: 10),
-                                if (fotosLinks.isEmpty && videoLinks.isEmpty)
+                                const SizedBox(height: 10, width: double.infinity),
+
+                                if (fotosLinks.isEmpty &&
+                                    videoLinks.isEmpty &&
+                                    inscricaoLink.isEmpty &&
+                                    resultadoLink.isEmpty)
                                   Text(
                                     'Sem links cadastrados.',
                                     style: TextStyle(color: Colors.grey.shade700, fontSize: 12),
                                   )
                                 else
-                                  Wrap(
-                                    spacing: 10,
-                                    runSpacing: 10,
-                                    children: [
-                                      for (int i = 0; i < fotosLinks.length; i++)
-                                        _pillButton(
-                                          label: fotosLinks.length == 1 ? 'Fotos' : 'Fotos ${i + 1}',
-                                          icon: Icons.photo_library_outlined,
-                                          background: const Color(0xFF263238).withValues(alpha: 0.08),
-                                          onPressed: () => _abrirLink(fotosLinks[i]),
-                                        ),
-                                      for (int i = 0; i < videoLinks.length; i++)
-                                        _pillButton(
-                                          label: videoLinks.length == 1 ? 'Assistir' : 'Assistir ${i + 1}',
-                                          icon: Icons.play_arrow_rounded,
-                                          background: const Color(0xFF263238).withValues(alpha: 0.08),
-                                          onPressed: () => _abrirLink(videoLinks[i]),
-                                        ),
-                                    ],
+                                  SizedBox(
+                                    width: double.infinity,
+                                    child: Wrap(
+                                      alignment: WrapAlignment.spaceBetween,
+                                      runSpacing: 12,
+                                      spacing: 12,
+                                      children: [
+                                        for (int i = 0; i < fotosLinks.length; i++)
+                                          _pillButton(
+                                            label: fotosLinks.length == 1 ? 'Fotos' : 'Fotos ${i + 1}',
+                                            icon: Icons.photo_library_outlined,
+                                            background: const Color(0xFF263238).withValues(alpha: 0.08),
+                                            onPressed: () => _abrirLink(fotosLinks[i]),
+                                          ),
+                                        for (int i = 0; i < videoLinks.length; i++)
+                                          _pillButton(
+                                            label: videoLinks.length == 1 ? 'Assistir' : 'Assistir ${i + 1}',
+                                            icon: Icons.play_arrow_rounded,
+                                            background: const Color(0xFF263238).withValues(alpha: 0.08),
+                                            onPressed: () => _abrirLink(videoLinks[i]),
+                                          ),
+
+                                        if (inscricaoLink.isNotEmpty)
+                                          _pillButton(
+                                            label: 'Inscrição',
+                                            icon: Icons.how_to_reg_outlined,
+                                            background: const Color(0xFF263238).withValues(alpha: 0.08),
+                                            onPressed: () => _abrirLink(inscricaoLink),
+                                          ),
+
+                                        if (resultadoLink.isNotEmpty)
+                                          _pillButton(
+                                            label: 'Resultados',
+                                            icon: Icons.emoji_events_outlined,
+                                            background: const Color(0xFF263238).withValues(alpha: 0.08),
+                                            onPressed: () => _abrirLink(resultadoLink),
+                                          ),
+                                      ],
+                                    ),
                                   ),
                               ],
                             ),

@@ -14,6 +14,11 @@ const SubEventoSchema = new mongoose.Schema(
 
     videoUrl: { type: String, default: '' },
     fotosUrl: { type: String, default: '' },
+
+    // NOVO (para bater com o app)
+    inscricaoUrl: { type: String, default: '' },
+    resultadoUrl: { type: String, default: '' },
+
     placar: { type: String, default: '' },
 
     // ===== NOVOS CAMPOS =====

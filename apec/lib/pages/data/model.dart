@@ -251,6 +251,8 @@ class SubEvento {
 
   final String? videoUrl;
   final String? fotosUrl;
+  final String? resultadoUrl;
+  final String? inscricaoUrl;
 
   /// Texto livre (ex.: "2x1", "W.O.", etc.)
   final String? placar;
@@ -287,6 +289,8 @@ class SubEvento {
     required this.imagem,
     this.videoUrl,
     this.fotosUrl,
+    this.resultadoUrl,
+    this.inscricaoUrl,
     this.placar,
     this.eventoPaiId,
     this.instituicaoId,
@@ -332,6 +336,8 @@ class SubEvento {
       imagem: (j['imagem'] ?? j['fotoUrl'] ?? '').toString(),
       videoUrl: _norm(j['videoUrl']?.toString()),
       fotosUrl: _norm(j['fotosUrl']?.toString()),
+      resultadoUrl: _norm(j['resultadoUrl']?.toString()),
+      inscricaoUrl: _norm(j['inscricaoUrl']?.toString()),
       placar: _norm(j['placar']?.toString()),
       eventoPaiId: _idFromDynamic(j['eventoPaiId']),
       instituicaoId: _idFromDynamic(j['instituicaoId']),
@@ -363,6 +369,8 @@ class SubEvento {
         'imagem': imagem,
         'videoUrl': videoUrl,
         'fotosUrl': fotosUrl,
+        'resultadoUrl': resultadoUrl,
+        'inscricaoUrl': inscricaoUrl,
         'placar': placar,
         'eventoPaiId': eventoPaiId,
         'instituicaoId': instituicaoId,
@@ -449,11 +457,6 @@ class Evento {
   String? instituicaoId;
   Instituicao? instituicao;
 
-  // links
-  Uri? linkInscricao;
-  Uri? linkTransmissao;
-  Uri? linkResultados;
-  Uri? linkFotos;
 
   // >>> subeventos (agora com os campos específicos)
   List<String> categoriasSubeventos;
@@ -470,10 +473,6 @@ class Evento {
     required this.horario,
     this.instituicaoId,
     this.instituicao,
-    this.linkInscricao,
-    this.linkTransmissao,
-    this.linkResultados,
-    this.linkFotos,
     List<String>? categoriasSubeventos,
     List<SubEvento>? subeventos,
   })  : categoriasSubeventos = categoriasSubeventos ?? [],
@@ -490,10 +489,6 @@ class Evento {
       'imagem': imagem,
       'local': local,
       'instituicaoId': instituicaoId ?? instituicao?.id,
-      'linkInscricao': linkInscricao?.toString(),
-      'linkTransmissao': linkTransmissao?.toString(),
-      'linkResultados': linkResultados?.toString(),
-      'linkFotos': linkFotos?.toString(),
 
       // >>> subeventos
       'categoriasSubeventos': categoriasSubeventos,
@@ -514,11 +509,6 @@ class Evento {
       instId = instRaw.toString();
     }
 
-    Uri? _parseUri(dynamic raw) {
-      final s = raw?.toString().trim();
-      if (s == null || s.isEmpty) return null;
-      return Uri.tryParse(s);
-    }
 
     return Evento(
       id: (json['_id'] ?? json['id'] ?? '').toString(),
@@ -531,10 +521,6 @@ class Evento {
       imagem: (json['imagem'] ?? '').toString(),
       instituicaoId: instId,
       instituicao: inst,
-      linkInscricao: _parseUri(json['linkInscricao']),
-      linkTransmissao: _parseUri(json['linkTransmissao']),
-      linkResultados: _parseUri(json['linkResultados']),
-      linkFotos: _parseUri(json['linkFotos']),
 
       // >>> subeventos
       categoriasSubeventos: (json['categoriasSubeventos'] is List)
@@ -581,10 +567,6 @@ class Evento {
       local: local ?? this.local,
       instituicaoId: instituicaoId ?? this.instituicaoId,
       instituicao: instituicao ?? this.instituicao,
-      linkInscricao: linkInscricao ?? this.linkInscricao,
-      linkTransmissao: linkTransmissao ?? this.linkTransmissao,
-      linkResultados: linkResultados ?? this.linkResultados,
-      linkFotos: linkFotos ?? this.linkFotos,
       categoriasSubeventos: categoriasSubeventos ?? this.categoriasSubeventos,
       subeventos: subeventos ?? this.subeventos,
     );

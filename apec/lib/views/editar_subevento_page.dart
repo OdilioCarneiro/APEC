@@ -70,6 +70,10 @@ class _EditarSubEventoPageState extends State<EditarSubEventoPage> {
   final _fotosUrlController = TextEditingController();
   final _videoUrlController = TextEditingController();
 
+  // ===== NOVO: controllers extra URLs =====
+  final _inscricaoUrlController = TextEditingController();
+  final _resultadoUrlController = TextEditingController();
+
   // ===== controllers cultural =====
   final _temaController = TextEditingController();
   final _artistasController = TextEditingController();
@@ -118,6 +122,10 @@ class _EditarSubEventoPageState extends State<EditarSubEventoPage> {
     _placarController.text = s.placar ?? '';
     _fotosUrlController.text = s.fotosUrl ?? '';
     _videoUrlController.text = s.videoUrl ?? '';
+
+    // NOVO: urls extra
+    _inscricaoUrlController.text = s.inscricaoUrl ?? '';
+    _resultadoUrlController.text = s.resultadoUrl ?? '';
 
     // categoria de agrupamento (texto)
     final cat = (s.categoria ?? '').trim();
@@ -168,6 +176,10 @@ class _EditarSubEventoPageState extends State<EditarSubEventoPage> {
     _placarController.dispose();
     _fotosUrlController.dispose();
     _videoUrlController.dispose();
+
+    // NOVO
+    _inscricaoUrlController.dispose();
+    _resultadoUrlController.dispose();
 
     _temaController.dispose();
     _artistasController.dispose();
@@ -363,20 +375,24 @@ class _EditarSubEventoPageState extends State<EditarSubEventoPage> {
         'descricao': _descricaoController.text.trim(),
         'data': _dataSelecionada.toIso8601String().substring(0, 10),
 
-        // NOVO CERTO (model): hora
+        // model: hora
         'hora': _formatHora(_horaSelecionada),
 
-        // Se seu backend ainda aceitar "horario", mantém compat
+        // compat com backend antigo
         'horario': _formatHora(_horaSelecionada),
 
         'local': _localController.text.trim(),
         'placar': _placarController.text.trim().isEmpty ? null : _placarController.text.trim(),
         'fotosUrl': _fotosUrlController.text.trim().isEmpty ? null : _fotosUrlController.text.trim(),
         'videoUrl': _videoUrlController.text.trim().isEmpty ? null : _videoUrlController.text.trim(),
+
+        // NOVO: urls extra
+        'inscricaoUrl': _inscricaoUrlController.text.trim().isEmpty ? null : _inscricaoUrlController.text.trim(),
+        'resultadoUrl': _resultadoUrlController.text.trim().isEmpty ? null : _resultadoUrlController.text.trim(),
+
         'instituicaoId': instituicaoId,
         'eventoPaiId': widget.eventoPai.id,
 
-        // campos movidos pro subevento
         'tipo': _tipoSelecionado!.name,
       };
 
@@ -394,11 +410,10 @@ class _EditarSubEventoPageState extends State<EditarSubEventoPage> {
                 : _dataSelecionada.toIso8601String().substring(0, 10),
           };
         } else {
-          // se não for natação, remove jogoNatacao (evita ficar lixo salvo)
           dados['jogoNatacao'] = null;
         }
 
-        // remove campos culturais
+        // remove culturais
         dados['tema'] = null;
         dados['categoriaCultural'] = null;
         dados['artistas'] = null;
@@ -411,7 +426,7 @@ class _EditarSubEventoPageState extends State<EditarSubEventoPage> {
         final artistas = _parseLista(_artistasController.text);
         dados['artistas'] = artistas.isEmpty ? null : artistas;
 
-        // remove campos esportivos
+        // remove esportivos
         dados['categoriaEsportiva'] = null;
         dados['genero'] = null;
         dados['jogo'] = null;
@@ -655,9 +670,7 @@ class _EditarSubEventoPageState extends State<EditarSubEventoPage> {
                         const SizedBox(height: 14),
                         TextFormField(
                           controller: _dataProvaController,
-                          decoration: const InputDecoration(
-                            labelText: 'Data da prova (opcional, AAAA-MM-DD)',
-                          ),
+                          decoration: const InputDecoration(labelText: 'Data da prova (opcional, AAAA-MM-DD)'),
                         ),
                       ],
                     ],
@@ -680,9 +693,7 @@ class _EditarSubEventoPageState extends State<EditarSubEventoPage> {
                       const SizedBox(height: 14),
                       TextFormField(
                         controller: _artistasController,
-                        decoration: const InputDecoration(
-                          labelText: 'Artistas (separe por ; ou ,)',
-                        ),
+                        decoration: const InputDecoration(labelText: 'Artistas (separe por ; ou ,)'),
                       ),
                     ],
 
@@ -768,6 +779,19 @@ class _EditarSubEventoPageState extends State<EditarSubEventoPage> {
                     TextFormField(
                       controller: _videoUrlController,
                       decoration: const InputDecoration(labelText: 'Links de Vídeos (separe por ; ou vírgula)'),
+                    ),
+
+                    // ===== NOVO: inscrição / resultado =====
+                    const SizedBox(height: 14),
+                    TextFormField(
+                      controller: _inscricaoUrlController,
+                      decoration: const InputDecoration(labelText: 'Link de Inscrição (opcional)'),
+                    ),
+
+                    const SizedBox(height: 14),
+                    TextFormField(
+                      controller: _resultadoUrlController,
+                      decoration: const InputDecoration(labelText: 'Link de Resultados (opcional)'),
                     ),
 
                     const SizedBox(height: 24),
