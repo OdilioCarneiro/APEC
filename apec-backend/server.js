@@ -2,8 +2,6 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 require('dotenv').config();
-app.use('/api/eventos', require('./routes/eventos'));
-
 
 const app = express();
 
@@ -53,5 +51,3 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`📍 Acesse (da máquina): http://localhost:${PORT}`);
   console.log(`📡 Acesse (na mesma rede): http://<IP_DA_SUA_MAQUINA>:${PORT}`);
 });
-
-
