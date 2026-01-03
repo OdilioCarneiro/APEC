@@ -121,7 +121,7 @@ class _HomePageState extends State<HomePage> {
               const SizedBox(height: 16),
 
               const Text(
-                'Eventos culturais',
+                'Eventos',
                 style: TextStyle(
                   color: titleColor,
                   fontSize: 32,

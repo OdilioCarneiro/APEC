@@ -411,12 +411,9 @@ class _EditarSubEventoPageState extends State<EditarSubEventoPage> {
 
         if (_categoriaEsportivaSelecionada == CategoriEspotiva.natacao) {
           dados['jogoNatacao'] = {
-            'atleta': _atletaController.text.trim(),
+            'atletas': _atletaController.text.trim(),
             'modalidade': _modalidadeNatacaoSelecionada.name,
-            'tempo': _tempoController.text.trim(),
-            'data': _dataProvaController.text.trim().isNotEmpty
-                ? _dataProvaController.text.trim()
-                : _dataSelecionada.toIso8601String().substring(0, 10),
+            'melhor tempo': _tempoController.text.trim(),
           };
         } else {
           dados['jogoNatacao'] = null;
@@ -657,7 +654,7 @@ class _EditarSubEventoPageState extends State<EditarSubEventoPage> {
                         const SizedBox(height: 14),
                         TextFormField(
                           controller: _atletaController,
-                          decoration: const InputDecoration(labelText: 'Atleta'),
+                          decoration: const InputDecoration(labelText: 'Atletas'),
                         ),
                         const SizedBox(height: 14),
                         DropdownMenu<ModalidadeNatacao>(
@@ -674,13 +671,9 @@ class _EditarSubEventoPageState extends State<EditarSubEventoPage> {
                         const SizedBox(height: 14),
                         TextFormField(
                           controller: _tempoController,
-                          decoration: const InputDecoration(labelText: 'Tempo (ex: 00:58.32)'),
+                          decoration: const InputDecoration(labelText: 'Melhor tempo (ex: 00:58.32)'),
                         ),
                         const SizedBox(height: 14),
-                        TextFormField(
-                          controller: _dataProvaController,
-                          decoration: const InputDecoration(labelText: 'Data da prova (opcional, AAAA-MM-DD)'),
-                        ),
                       ],
                     ],
 

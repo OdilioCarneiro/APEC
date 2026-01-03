@@ -353,32 +353,14 @@ class SubEventoCardComponent extends StatelessWidget {
                                   ),
                                   const SizedBox(height: 8),
                                   if ((s.placar ?? '').trim().isNotEmpty)
-                                    _infoRow(Icons.emoji_events_outlined, (s.placar ?? '').trim()),
-                                  if (s.jogoNatacao != null) ...[
+                                    _infoRow(Icons.scoreboard_outlined, 'Placar: ${(s.placar ?? '').trim()}'),
+                                  if (s.jogoNatacao != null && s.categoriaEsportiva == CategoriEspotiva.natacao) ...[
                                     if ((s.placar ?? '').trim().isNotEmpty) const SizedBox(height: 10),
-                                    _infoRow(Icons.person_outline, 'Atleta: ${s.jogoNatacao!.atleta}'),
+                                    _infoRow(Icons.person_outline, 'Atletas: ${s.jogoNatacao!.atleta}'),
                                     const SizedBox(height: 8),
                                     _infoRow(Icons.pool_outlined, 'Modalidade: ${s.jogoNatacao!.modalidade.name}'),
                                     const SizedBox(height: 8),
-                                    _infoRow(Icons.timer_outlined, 'Tempo: ${s.jogoNatacao!.tempo}'),
-                                    if (s.jogoNatacao!.data.trim().isNotEmpty) ...[
-                                      const SizedBox(height: 8),
-                                      _infoRow(
-                                        Icons.calendar_today_outlined,
-                                        'Data da prova: ${_dataBr(s.jogoNatacao!.data)}',
-                                      ),
-                                    ],
-                                  ],
-                                  if (s.jogo != null) ...[
-                                    const SizedBox(height: 10),
-                                    _infoRow(Icons.groups_2_outlined, '${s.jogo!.timeA} vs ${s.jogo!.timeB}'),
-                                    const SizedBox(height: 8),
-                                    _infoRow(
-                                      Icons.scoreboard_outlined,
-                                      'Placar: ${s.jogo!.placarA} x ${s.jogo!.placarB}',
-                                    ),
-                                    const SizedBox(height: 8),
-                                    _infoRow(Icons.place_outlined, 'Local: ${s.jogo!.local}'),
+                                    _infoRow(Icons.timer_outlined, 'Melhor tempo: ${s.jogoNatacao!.tempo}'),
                                   ],
                                 ],
                               ),

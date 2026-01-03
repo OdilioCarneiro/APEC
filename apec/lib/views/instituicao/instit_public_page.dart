@@ -81,208 +81,244 @@ class _InstituicaoPublicaPageState extends State<InstituicaoPublicaPage> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF3F5F7),
-      body: CustomScrollView(
-        slivers: [
-          SliverAppBar(
-            pinned: true,
-            expandedHeight: 240,
-            backgroundColor: Colors.transparent,
-            surfaceTintColor: Colors.transparent,
-            elevation: 0,
-            leading: IconButton(
-              onPressed: () => context.pop(),
-              icon: const Icon(Icons.arrow_back_ios_new_rounded),
-            ),
-            title: Text(
-              nome,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontWeight: FontWeight.w800),
-            ),
-            flexibleSpace: FlexibleSpaceBar(
-              background: Stack(
-                fit: StackFit.expand,
-                children: [
-                  const DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          Color(0xFFFFE5E5),
-                          Color(0xFFE5F7FF),
-                          Color.fromARGB(255, 251, 255, 229),
-                        ],
-                      ),
-                    ),
-                  ),
-                  DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.black.withValues(alpha: 0.04),
-                          Colors.black.withValues(alpha: 0.0),
-                        ],
-                      ),
-                    ),
-                  ),
+      body: LayoutBuilder( // RESPONSIVO
+        builder: (context, constraints) {
+          final w = constraints.maxWidth;
 
-                  // Avatar “flutuando”
-                  Align(
-                    alignment: Alignment.bottomCenter,
-                    child: Padding(
-                      padding: const EdgeInsets.only(bottom: 18),
-                      child: _AvatarInstituicaoGradient(
-                        fotoUrl: fotoUrl,
-                        size: 106,
-                        borderThickness: 3.5,
-                        gradientColors: _gradColors,
-                        fallbackText: _iniciais(nome),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+          // largura máxima do conteúdo (pra não esticar no web/tablet)
+          final contentMaxWidth = w >= 1100 ? 980.0 : (w >= 800 ? 760.0 : double.infinity); // RESPONSIVO [web:491]
+          final horizontalPadding = w >= 800 ? 24.0 : 16.0; // RESPONSIVO
 
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Nome + bio em card (fica mais “design system”)
-                  Card(
-                    elevation: 0,
-                    color: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-                      child: Column(
-                        children: [
-                          Text(
-                            nome,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w900,
-                              color: Color(0xFF263238),
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          Text(
-                            bio,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              fontSize: 13.5,
-                              height: 1.45,
-                              color: Color(0xFF607D8B),
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
+          // largura do card horizontal (antes era 305 fixo)
+          final cardWidth = (w * 0.82).clamp(260.0, 360.0); // RESPONSIVO
 
-                  const SizedBox(height: 14),
+          // altura do header um pouco maior em telas grandes
+          final expandedHeight = (w >= 800) ? 280.0 : 240.0; // RESPONSIVO
 
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          // avatar escala levemente em telas grandes
+          final avatarSize = (w >= 800) ? 118.0 : 106.0; // RESPONSIVO
+
+          return CustomScrollView(
+            slivers: [
+              SliverAppBar(
+                pinned: true,
+                expandedHeight: expandedHeight,
+                backgroundColor: Colors.transparent,
+                surfaceTintColor: Colors.transparent,
+                elevation: 0,
+                leading: IconButton(
+                  onPressed: () => context.pop(),
+                  icon: const Icon(Icons.arrow_back_ios_new_rounded),
+                ),
+                title: Text(
+                  nome,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+                flexibleSpace: FlexibleSpaceBar(
+                  background: Stack(
+                    fit: StackFit.expand,
                     children: [
-                      const Text(
-                        'Eventos',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w900,
-                          color: Color(0xFF263238),
+                      const DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              Color(0xFFFFE5E5),
+                              Color(0xFFE5F7FF),
+                              Color.fromARGB(255, 251, 255, 229),
+                            ],
+                          ),
                         ),
                       ),
-                      TextButton(
-                        onPressed: _carregarEventos,
-                        child: const Text('Atualizar'),
+                      DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.black.withValues(alpha: 0.04),
+                              Colors.black.withValues(alpha: 0.0),
+                            ],
+                          ),
+                        ),
+                      ),
+                      Align(
+                        alignment: Alignment.bottomCenter,
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 18),
+                          child: _AvatarInstituicaoGradient(
+                            fotoUrl: fotoUrl,
+                            size: avatarSize, // RESPONSIVO
+                            borderThickness: 3.5,
+                            gradientColors: _gradColors,
+                            fallbackText: _iniciais(nome),
+                          ),
+                        ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
+                ),
+              ),
 
-                  if (_loadingEventos)
-                    const SizedBox(height: 160, child: Center(child: CircularProgressIndicator()))
-                  else if (_erroEventos != null)
-                    SizedBox(
-                      height: 160,
-                      child: Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.error_outline, color: Colors.red, size: 34),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Erro ao carregar eventos.',
-                              style: const TextStyle(color: Color(0xFF263238), fontWeight: FontWeight.w700),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              _erroEventos!,
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(color: Color(0xFF607D8B), fontSize: 12),
-                              maxLines: 3,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 10),
-                            FilledButton.tonal(
-                              onPressed: _carregarEventos,
-                              child: const Text('Tentar novamente'),
-                            ),
-                          ],
-                        ),
-                      ),
-                    )
-                  else if (_eventos.isEmpty)
-                    const SizedBox(
-                      height: 120,
-                      child: Center(
-                        child: Text(
-                          'Nenhum evento cadastrado.',
-                          style: TextStyle(color: Color(0xFF607D8B), fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                    )
-                  else
-                    SizedBox(
-                      height: 160,
-                      child: ListView.separated(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: _eventos.length,
-                        separatorBuilder: (_, __) => const SizedBox(width: 14),
-                        itemBuilder: (context, index) {
-                          final raw = _eventos[index] as Map<String, dynamic>;
-                          final evento = Evento.fromAPI(raw);
-
-                          return InkWell(
-                            onTap: () => _abrirEvento(evento),
-                            borderRadius: BorderRadius.circular(16),
-                            child: SizedBox(
-                              width: 305,
-                              child: EventCardComponent(
-                                evento: evento,
-                                isDono: false,
+              SliverToBoxAdapter(
+                child: Center( 
+                  child: ConstrainedBox( 
+                    constraints: BoxConstraints(maxWidth: contentMaxWidth),
+                    child: Padding(
+                      padding: EdgeInsets.fromLTRB(horizontalPadding, 12, horizontalPadding, 20), 
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                         Center(
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 560), 
+                              child: Card(
+                                elevation: 0,
+                                color: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(18),
+                                ),
+                                child: Padding(
+                                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.center,
+                                    children: [
+                                      Text(
+                                        nome,
+                                        textAlign: TextAlign.center,
+                                        style: const TextStyle(
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.w900,
+                                          color: Color(0xFF263238),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 10),
+                                      Text(
+                                        bio,
+                                        textAlign: TextAlign.center,
+                                        style: const TextStyle(
+                                          fontSize: 13.5,
+                                          height: 1.45,
+                                          color: Color(0xFF607D8B),
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
                               ),
                             ),
-                          );
-                        },
+                          ),
+
+
+                          const SizedBox(height: 14),
+
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                'Eventos',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w900,
+                                  color: Color(0xFF263238),
+                                ),
+                              ),
+                              TextButton(
+                                onPressed: _carregarEventos,
+                                child: const Text('Atualizar'),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+
+                          if (_loadingEventos)
+                            const SizedBox(height: 160, child: Center(child: CircularProgressIndicator()))
+                          else if (_erroEventos != null)
+                            SizedBox(
+                              height: 160,
+                              child: Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Icon(Icons.error_outline, color: Colors.red, size: 34),
+                                    const SizedBox(height: 8),
+                                    const Text(
+                                      'Erro ao carregar eventos.',
+                                      style: TextStyle(
+                                        color: Color(0xFF263238),
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      _erroEventos!,
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(color: Color(0xFF607D8B), fontSize: 12),
+                                      maxLines: 3,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    const SizedBox(height: 10),
+                                    FilledButton.tonal(
+                                      onPressed: _carregarEventos,
+                                      child: const Text('Tentar novamente'),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            )
+                          else if (_eventos.isEmpty)
+                            const SizedBox(
+                              height: 120,
+                              child: Center(
+                                child: Text(
+                                  'Nenhum evento cadastrado.',
+                                  style: TextStyle(
+                                    color: Color(0xFF607D8B),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            )
+                          else
+                            SizedBox(
+                              height: 160,
+                              child: ListView.separated(
+                                scrollDirection: Axis.horizontal,
+                                itemCount: _eventos.length,
+                                separatorBuilder: (_, __) => const SizedBox(width: 14),
+                                itemBuilder: (context, index) {
+                                  final raw = _eventos[index] as Map<String, dynamic>;
+                                  final evento = Evento.fromAPI(raw);
+
+                                  return InkWell(
+                                    onTap: () => _abrirEvento(evento),
+                                    borderRadius: BorderRadius.circular(16),
+                                    child: SizedBox(
+                                      width: cardWidth, // RESPONSIVO (antes 305 fixo)
+                                      child: EventCardComponent(
+                                        evento: evento,
+                                        isDono: false,
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+
+                          const SizedBox(height: 20),
+                        ],
                       ),
                     ),
-
-                  const SizedBox(height: 20),
-                ],
+                  ),
+                ),
               ),
-            ),
-          ),
-        ],
+            ],
+          );
+        },
       ),
     );
   }

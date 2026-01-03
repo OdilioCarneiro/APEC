@@ -97,8 +97,7 @@ class _OnBoardingState extends State<OnBoarding> {
                         ),
                         const SizedBox(height: 12.0),
                         Text(
-                          // usando novamente title como texto de apoio, para não depender de subtitle
-                          content.title,
+                          content.description,
                           style: TextStyle(
                             fontSize: subtitleFontSize,
                             fontWeight: FontWeight.w400,

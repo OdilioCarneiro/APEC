@@ -174,24 +174,19 @@ class _EditarEventoPageState extends State<EditarEventoPage> {
 
       final dados = <String, dynamic>{
         'nome': _nomeController.text,
-        'categoria': _categoriaSelecionada!.name, // esportiva | cultural | ambos
+        'categoria': _categoriaSelecionada!.name, 
         'descricao': _descricaoController.text,
         'data': _dataSelecionada.toIso8601String().substring(0, 10),
         'horario': _formatHora(_horaSelecionada),
         'local': _localController.text,
         'instituicaoId': instituicaoId,
-        // IMPORTANTE: tema/artistas/gênero/categoriaEsportiva/categoriaCultural saíram do Evento.
       };
 
-      // IMAGEM:
-      // Se o seu ApiService.atualizarEvento ainda for "JSON puro", isso aqui NÃO vai atualizar arquivo.
-      // A forma correta é o ApiService aceitar multipart quando _selectedImage != null.
-      // Aqui a tela só envia o path no campo imagem como fallback.
       if (_selectedImage == null) {
-        // mantém a imagem atual ou o que tiver no controller (se você usar)
+
         dados['imagem'] = widget.evento.imagem;
       } else {
-        dados['imagem'] = _imagemController.text; // fallback (path local)
+        dados['imagem'] = _imagemController.text; 
       }
 
       await ApiService.atualizarEvento(widget.evento.id ?? '', dados);

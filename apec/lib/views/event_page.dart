@@ -114,23 +114,33 @@ class _EventPageState extends State<EventPage> {
         final size = MediaQuery.of(context).size;
         final screenHeight = size.height;
 
-        final Gradient fundoEvento = (evento.categoria == Categoria.esportiva)
-            ? LinearGradient(
-                begin: Alignment.center,
-                end: Alignment.bottomCenter,
-                colors: [
-                  const Color.fromARGB(255, 255, 255, 255),
-                  Colors.yellow.shade300,
-                ],
-              )
-            : const LinearGradient(
-                begin: Alignment.center,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Color.fromARGB(255, 255, 255, 255),
-                  Color.fromARGB(255, 255, 110, 110),
-                ],
-              );
+        final Gradient fundoEvento = switch (evento.categoria) {
+          Categoria.esportiva => LinearGradient(
+              begin: Alignment.center,
+              end: Alignment.bottomCenter,
+              colors: [
+                const Color.fromARGB(255, 255, 255, 255),
+                Colors.yellow.shade300, // amarelo
+              ],
+            ),
+          Categoria.cultural => const LinearGradient(
+              begin: Alignment.center,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color.fromARGB(255, 255, 255, 255),
+                Color.fromARGB(255, 255, 110, 110), // vermelho
+              ],
+            ),
+          Categoria.ambos => const LinearGradient(
+              begin: Alignment.center,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color.fromARGB(255, 255, 255, 255),
+                Color.fromARGB(255, 110, 170, 255), // azul
+              ],
+            ),
+        };
+
 
         // Mapa categoria -> lista
         final Map<String, List<SubEvento>> grupos = {};

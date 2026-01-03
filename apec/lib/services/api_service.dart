@@ -519,4 +519,41 @@ class ApiService {
     if (response.statusCode == 200) return _decodeMap(response);
     _throwHttp(response, 'Erro ao renomear categoria');
   }
+
+      //tela de esportes
+    static Future<List<dynamic>> listarSubEventosEsportivos({String? categoriaEsportiva}) async {
+      final base = _uri('/subeventos');
+
+      final qp = <String, String>{'tipo': 'esportiva'};
+      if (categoriaEsportiva != null && categoriaEsportiva.isNotEmpty) {
+        qp['categoriaEsportiva'] = categoriaEsportiva;
+      }
+
+      final uri = base.replace(queryParameters: qp);
+
+      final response = await http.get(uri).timeout(_timeout);
+      if (response.statusCode == 200) return _decodeList(response);
+
+      _throwHttp(response, 'Erro ao listar subeventos esportivos');
+    }
+
+    // tela de cultura
+    static Future<List<dynamic>> listarSubEventosCulturais({String? categoriaCultural}) async {
+      final base = _uri('/subeventos');
+
+      final qp = <String, String>{'tipo': 'cultural'};
+      if (categoriaCultural != null && categoriaCultural.isNotEmpty) {
+        qp['categoriaCultural'] = categoriaCultural; // ex: 'musica', 'teatro'...
+      }
+
+      final uri = base.replace(queryParameters: qp);
+
+      final response = await http.get(uri).timeout(_timeout);
+      if (response.statusCode == 200) return _decodeList(response);
+
+      _throwHttp(response, 'Erro ao listar subeventos culturais');
+    }
+
 }
+
+
