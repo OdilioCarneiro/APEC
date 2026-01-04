@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:go_router/go_router.dart';
+// Ajuste os caminhos se necessário
 import 'package:apec/pages/data/model.dart';
 import 'package:apec/services/api_service.dart';
 import 'package:apec/pages/components/card.dart';
-import 'package:apec/utils/debouncer.dart'; // <--- Certifique-se que este arquivo existe
+import 'package:apec/utils/debouncer.dart';
 
 const titleColor = Color(0xFF263238);
 
@@ -15,20 +16,18 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  // Dados iniciais (Destaques)
   late Future<List<dynamic>> _eventosIniciais;
   late Future<List<dynamic>> _instituicoesIniciais;
 
-  // Controle da Busca
-  final _searchController = TextEditingController();
-  final _debouncer = Debouncer(milliseconds: 500);
-  bool _isSearching = false; // "Estou buscando?"
-  bool _isLoading = false;   // "Estou carregando?"
+  final TextEditingController _searchController = TextEditingController();
+  final Debouncer _debouncer = Debouncer(milliseconds: 500);
+  
+  bool _isSearching = false;
+  bool _isLoading = false;
 
-  // Resultados
-  List _resEventos = [];
-  List _resInstituicoes = [];
-  List _resSubeventos = [];
+  List<dynamic> _resEventos = [];
+  List<dynamic> _resInstituicoes = [];
+  List<dynamic> _resSubeventos = [];
 
   @override
   void initState() {
@@ -52,7 +51,7 @@ class _HomePageState extends State<HomePage> {
         _resEventos = [];
         _resInstituicoes = [];
         _resSubeventos = [];
-      }); 
+      });
       return;
     }
 
@@ -65,9 +64,10 @@ class _HomePageState extends State<HomePage> {
       setState(() {
         _isSearching = true;
         _isLoading = false;
-        _resEventos = results['eventos']!;
-        _resInstituicoes = results['instituicoes']!;
-        _resSubeventos = results['subeventos']!;
+        // Garante que é List<dynamic>
+        _resEventos = results['eventos'] ?? [];
+        _resInstituicoes = results['instituicoes'] ?? [];
+        _resSubeventos = results['subeventos'] ?? [];
       });
     });
   }
@@ -90,8 +90,7 @@ class _HomePageState extends State<HomePage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // === BARRA UNIFICADA (CORRIGIDA) ===
-              // Usamos Stack para evitar o erro de 'suffixIcon'
+              // === BARRA DE PESQUISA ===
               Stack(
                 alignment: Alignment.centerRight,
                 children: [
@@ -107,11 +106,9 @@ class _HomePageState extends State<HomePage> {
                       backgroundColor: Colors.transparent,
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                       onChanged: _onSearchChanged,
-                      // Não definimos suffixIcon aqui para evitar erro de tipo
+                      // Removido prefixIcon/suffixIcon para evitar conflito
                     ),
                   ),
-                  
-                  // O indicador de carregamento fica flutuando aqui
                   if (_isLoading)
                     const Positioned(
                       right: 12,
@@ -122,7 +119,7 @@ class _HomePageState extends State<HomePage> {
               
               const SizedBox(height: 20),
 
-              // === CONTEÚDO (Alterna entre Busca e Home) ===
+              // === CONTEÚDO ===
               _isSearching ? _buildResultados() : _buildHomeNormal(),
             ],
           ),
@@ -131,9 +128,8 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // TELA DE RESULTADOS DA BUSCA
   Widget _buildResultados() {
-    final nadaEncontrado = !_isLoading && 
+    final bool nadaEncontrado = !_isLoading && 
         _resEventos.isEmpty && 
         _resInstituicoes.isEmpty && 
         _resSubeventos.isEmpty;
@@ -150,7 +146,6 @@ class _HomePageState extends State<HomePage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 1. Instituições Encontradas
         if (_resInstituicoes.isNotEmpty) ...[
           _titulo('Instituições'),
           SizedBox(
@@ -158,8 +153,8 @@ class _HomePageState extends State<HomePage> {
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               itemCount: _resInstituicoes.length,
-              separatorBuilder: (_,__) => const SizedBox(width: 12),
-              itemBuilder: (_, i) {
+              separatorBuilder: (_, __) => const SizedBox(width: 12),
+              itemBuilder: (ctx, i) {
                 final inst = Instituicao.fromAPI(_resInstituicoes[i]);
                 return _InstituicaoChip(
                   instituicao: inst, 
@@ -171,16 +166,13 @@ class _HomePageState extends State<HomePage> {
           const SizedBox(height: 20),
         ],
         
-        // 2. Eventos Encontrados
         if (_resEventos.isNotEmpty) ...[
           _titulo('Eventos'),
           LayoutBuilder(builder: (context, constraints) {
              final maxWidth = constraints.maxWidth;
-             const minCardWidth = 260.0;
-             const maxCardWidth = 340.0;
-             final columns = (maxWidth / minCardWidth).floor().clamp(1, 4);
-             final effectiveCardWidth = (maxWidth - (columns - 1) * 18) / columns;
-             final cardWidth = effectiveCardWidth.clamp(minCardWidth, maxCardWidth);
+             // Ajuste para evitar divisão por zero
+             final columns = (maxWidth / 260.0).floor().clamp(1, 4);
+             final cardWidth = ((maxWidth - (columns - 1) * 18) / columns).clamp(260.0, 340.0);
 
              return Wrap(
                spacing: 18, runSpacing: 18,
@@ -193,7 +185,6 @@ class _HomePageState extends State<HomePage> {
           const SizedBox(height: 20),
         ],
 
-        // 3. Subeventos Encontrados
         if (_resSubeventos.isNotEmpty) ...[
           _titulo('Atividades & Palestras'),
           ListView.separated(
@@ -208,7 +199,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // TELA HOME NORMAL (Destaques iniciais)
   Widget _buildHomeNormal() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -216,25 +206,24 @@ class _HomePageState extends State<HomePage> {
         _titulo('Instituições'),
         SizedBox(
           height: 86,
-          child: FutureBuilder<List>(
+          child: FutureBuilder<List<dynamic>>(
             future: _instituicoesIniciais,
             builder: (ctx, snap) {
               if (snap.connectionState == ConnectionState.waiting) {
                 return const Center(child: CupertinoActivityIndicator());
               }
-              if (snap.hasError || !snap.hasData || snap.data!.isEmpty) {
-                return const Text('Nenhuma instituição encontrada');
-              }
+              if (snap.hasError) return const Text('Erro ao carregar');
+              final list = snap.data ?? [];
+              if (list.isEmpty) return const Text('Nenhuma instituição');
               
               return ListView.separated(
                 scrollDirection: Axis.horizontal,
-                itemCount: snap.data!.length,
+                itemCount: list.length,
                 separatorBuilder: (_,__) => const SizedBox(width: 12),
                 itemBuilder: (_, i) {
-                  final raw = snap.data![i];
+                  final raw = list[i];
                   if (raw is! Map<String, dynamic>) return const SizedBox.shrink();
                   final inst = Instituicao.fromAPI(raw);
-                  
                   return _InstituicaoChip(
                     instituicao: inst,
                     onTap: () => _abrirInstituicao(inst)
@@ -252,7 +241,7 @@ class _HomePageState extends State<HomePage> {
         ),
         const SizedBox(height: 10),
         
-        FutureBuilder<List>(
+        FutureBuilder<List<dynamic>>(
           future: _eventosIniciais,
           builder: (ctx, snap) {
             if (snap.connectionState == ConnectionState.waiting) {
@@ -261,21 +250,18 @@ class _HomePageState extends State<HomePage> {
                 child: Center(child: CupertinoActivityIndicator()),
               );
             }
-            if (snap.hasError || !snap.hasData || snap.data!.isEmpty) {
-              return const Center(child: Text('Nenhum evento encontrado'));
-            }
+            if (snap.hasError) return const Text('Erro ao carregar');
+            final list = snap.data ?? [];
+            if (list.isEmpty) return const Center(child: Text('Nenhum evento'));
 
             return LayoutBuilder(builder: (context, constraints) {
                final maxWidth = constraints.maxWidth;
-               const minCardWidth = 260.0;
-               const maxCardWidth = 340.0;
-               final columns = (maxWidth / minCardWidth).floor().clamp(1, 4);
-               final effectiveCardWidth = (maxWidth - (columns - 1) * 18) / columns;
-               final cardWidth = effectiveCardWidth.clamp(minCardWidth, maxCardWidth);
+               final columns = (maxWidth / 260.0).floor().clamp(1, 4);
+               final cardWidth = ((maxWidth - (columns - 1) * 18) / columns).clamp(260.0, 340.0);
 
                return Wrap(
                  spacing: 18, runSpacing: 18,
-                 children: snap.data!.map((e) {
+                 children: list.map((e) {
                    final evento = Evento.fromAPI(e as Map<String, dynamic>);
                    return SizedBox(width: cardWidth, child: EventCardComponent(evento: evento));
                  }).toList(),
@@ -293,39 +279,37 @@ class _HomePageState extends State<HomePage> {
   );
 }
 
-// === WIDGETS AUXILIARES ===
+// WIDGETS AUXILIARES
 
 class _SubeventoCard extends StatelessWidget {
-  final Map data;
-  const _SubeventoCard({required this.data});
+  final Map<String, dynamic> data;
+  const _SubeventoCard({required this.data}); // Removido Key para simplificar
+  
   @override
   Widget build(BuildContext context) {
-    final pai = data['eventoId'] is Map ? data['eventoId']['nome'] : 'Evento Principal';
-    
+    // Tratamento seguro para 'eventoId'
+    String nomePai = 'Evento';
+    if (data['eventoId'] != null && data['eventoId'] is Map) {
+      nomePai = data['eventoId']['nome'] ?? 'Evento';
+    }
+
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border.all(color: Colors.grey.shade300),
         borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 4, offset: const Offset(0, 2))
-        ]
       ),
       child: Row(
         children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: Colors.blue.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
-            child: const Icon(Icons.class_, color: Colors.blue, size: 20),
-          ),
+          const Icon(Icons.class_, color: Colors.blue, size: 20),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(data['titulo'] ?? 'Sem título', style: const TextStyle(fontWeight: FontWeight.bold)),
-                Text('Em: $pai', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                Text('Em: $nomePai', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
               ],
             ),
           ),
@@ -339,14 +323,13 @@ class _SubeventoCard extends StatelessWidget {
 class _InstituicaoChip extends StatelessWidget {
   final Instituicao instituicao;
   final VoidCallback onTap;
-
   const _InstituicaoChip({required this.instituicao, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     final nome = (instituicao.nome ?? '').trim();
-    final fotoUrl = instituicao.imagem.trim().isEmpty ? null : instituuicaoSafeUrl(instituicao.imagem);
-
+    final fotoUrl = instituicao.imagem.trim().isEmpty ? null : _safeUrl(instituicao.imagem);
+    
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(14),
@@ -355,12 +338,7 @@ class _InstituicaoChip extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            _AvatarInstituicaoGradient(
-              fotoUrl: fotoUrl,
-              size: 54,
-              borderThickness: 2.5,
-              gradientColors: const [Color(0xFFFA4050), Color(0xFF59B0E3), Color(0xFFF5E15F)],
-            ),
+            _AvatarGradient(fotoUrl: fotoUrl, size: 54),
             const SizedBox(height: 6),
             Text(
               nome.isEmpty ? 'Instit.' : nome,
@@ -374,43 +352,43 @@ class _InstituicaoChip extends StatelessWidget {
     );
   }
 
-  String? instituuicaoSafeUrl(String? raw) {
+  String? _safeUrl(String? raw) {
     final s = (raw ?? '').trim();
     if (s.isEmpty) return null;
-    if (s.startsWith('http://') || s.startsWith('https://')) return s;
+    if (s.startsWith('http')) return s;
     return 'https://$s';
   }
 }
 
-class _AvatarInstituicaoGradient extends StatelessWidget {
+class _AvatarGradient extends StatelessWidget {
   final String? fotoUrl;
   final double size;
-  final double borderThickness;
-  final List<Color> gradientColors;
-
-  const _AvatarInstituicaoGradient({
+  
+  // Construtor simplificado sem opcionais problemáticos
+  const _AvatarGradient({
     required this.fotoUrl,
     required this.size,
-    required this.borderThickness,
-    required this.gradientColors,
   });
 
   @override
   Widget build(BuildContext context) {
-    final hasUrl = fotoUrl != null && fotoUrl!.trim().isNotEmpty;
     return Container(
       width: size,
       height: size,
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         shape: BoxShape.circle,
-        gradient: LinearGradient(colors: gradientColors, begin: Alignment.topCenter, end: Alignment.bottomCenter),
+        gradient: LinearGradient(
+          colors: [Color(0xFFFA4050), Color(0xFF59B0E3), Color(0xFFF5E15F)],
+          begin: Alignment.topCenter, 
+          end: Alignment.bottomCenter
+        ),
       ),
       child: Padding(
-        padding: EdgeInsets.all(borderThickness),
+        padding: const EdgeInsets.all(2.5),
         child: Container(
           decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.grey.shade200),
           child: ClipOval(
-            child: hasUrl
+            child: fotoUrl != null
                 ? Image.network(fotoUrl!, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Center(child: Text('IF')))
                 : const Center(child: Text('IF', style: TextStyle(fontWeight: FontWeight.w800))),
           ),

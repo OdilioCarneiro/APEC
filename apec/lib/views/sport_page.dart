@@ -1,10 +1,32 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:apec/pages/data/data.dart'; // contém List<CardContentsport> cardContentsport
 
-class SportPage extends StatelessWidget {
+import 'package:apec/pages/data/data.dart'; // cardContentsport
+import 'package:apec/pages/data/model.dart';
+import 'package:apec/services/api_service.dart';
+import 'package:apec/pages/components/card.dart';
+
+import 'package:apec/views/filtros/subevento_filtro_sport.dart'; // SubEventosPorCategoriaEsportivaPage
+
+class SportPage extends StatefulWidget {
   const SportPage({super.key});
+
+  @override
+  State<SportPage> createState() => _SportPageState();
+}
+
+class _SportPageState extends State<SportPage> {
+  late Future<List<dynamic>> _eventosAPI;
+
+  @override
+  void initState() {
+    super.initState();
+    _eventosAPI = ApiService.listarEventos();
+  }
+
+  bool _isEventoEsportivo(Evento e) =>
+      e.categoria == Categoria.esportiva || e.categoria == Categoria.ambos;
 
   @override
   Widget build(BuildContext context) {
@@ -20,15 +42,11 @@ class SportPage extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Barra de busca (estilo iOS)
               Container(
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color: const Color(0x33263238),
-                    width: 1,
-                  ),
+                  border: Border.all(color: const Color(0x33263238), width: 1),
                 ),
                 child: const CupertinoSearchTextField(
                   placeholder: 'Search',
@@ -38,7 +56,6 @@ class SportPage extends StatelessWidget {
               ),
               const SizedBox(height: 16),
 
-              // Título
               const Text(
                 'Eventos esportivos',
                 style: TextStyle(
@@ -50,17 +67,16 @@ class SportPage extends StatelessWidget {
               ),
               const SizedBox(height: 8),
 
-              // Divisor
               const Divider(
                 height: 10,
                 thickness: 1,
                 color: Color(0x1F000000),
               ),
 
-              // Carrossel de cards
+              // ====== CARROSSEL DE MODALIDADES (ABRE PÁGINA) ======
               const SizedBox(height: 12),
               SizedBox(
-                height: 168,
+                height: 152,
                 width: double.infinity,
                 child: ListView.builder(
                   scrollDirection: Axis.horizontal,
@@ -68,6 +84,7 @@ class SportPage extends StatelessWidget {
                   padding: const EdgeInsets.only(right: 8),
                   itemBuilder: (context, index) {
                     final c = cardContentsport[index];
+
                     return _SportTile(
                       title: c.title,
                       imageAsset: c.image,
@@ -76,13 +93,85 @@ class SportPage extends StatelessWidget {
                       onTap: () {
                         Navigator.of(context).push(
                           MaterialPageRoute(
-                            builder: (_) => SportDetalhePage(content: c),
+                            builder: (_) => SubEventosPorCategoriaEsportivaPage(
+                              categoriaEsportivaKey: c.key, // ex: 'natacao', 'basquete'...
+                              titulo: c.title,
+                            ),
                           ),
                         );
                       },
                     );
                   },
                 ),
+              ),
+
+              const SizedBox(height: 18),
+              const Text(
+                'Próximos eventos',
+                style: TextStyle(
+                  color: titleColor,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 10),
+
+              FutureBuilder<List<dynamic>>(
+                future: _eventosAPI,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const SizedBox(
+                      height: 190,
+                      child: Center(child: CircularProgressIndicator()),
+                    );
+                  }
+
+                  if (snapshot.hasError) {
+                    return SizedBox(
+                      height: 190,
+                      child: Row(
+                        children: [
+                          const Expanded(child: Text('Erro ao carregar eventos')),
+                          TextButton(
+                            onPressed: () => setState(() {
+                              _eventosAPI = ApiService.listarEventos();
+                            }),
+                            child: const Text('Tentar novamente'),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
+                  final eventos = (snapshot.data ?? [])
+                      .whereType<Map<String, dynamic>>()
+                      .map(Evento.fromAPI)
+                      .where(_isEventoEsportivo)
+                      .toList();
+
+                  if (eventos.isEmpty) {
+                    return const SizedBox(
+                      height: 190,
+                      child: Center(child: Text('Nenhum evento esportivo encontrado')),
+                    );
+                  }
+
+                  return SizedBox(
+                    height: 190,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: eventos.length,
+                      separatorBuilder: (_, __) => const SizedBox(width: 12),
+                      itemBuilder: (context, index) {
+                        final evento = eventos[index];
+                        return SizedBox(
+                          width: 320,
+                          child: EventCardComponent(evento: evento),
+                        );
+                      },
+                    ),
+                  );
+                },
               ),
             ],
           ),
@@ -110,7 +199,6 @@ class _SportTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
-    // Largura responsiva: ~4 tiles visíveis em celulares, com limites
     final tileWidth = (screenWidth * 0.24).clamp(80.0, 130.0);
 
     return Padding(
@@ -129,10 +217,7 @@ class _SportTile extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: background,
                     borderRadius: radius,
-                    border: Border.all(
-                      color: const Color(0x14000000),
-                      width: 2,
-                    ),
+                    border: Border.all(color: const Color(0x14000000), width: 2),
                     boxShadow: const [
                       BoxShadow(
                         color: Color.fromARGB(26, 0, 0, 0),
@@ -144,7 +229,7 @@ class _SportTile extends StatelessWidget {
                   child: ClipRRect(
                     borderRadius: radius,
                     child: AspectRatio(
-                      aspectRatio: 1, // quadrado, adapta à largura do tile
+                      aspectRatio: 1,
                       child: SvgPicture.asset(
                         imageAsset,
                         fit: BoxFit.cover,
@@ -174,27 +259,6 @@ class _SportTile extends StatelessWidget {
               ],
             ),
           ),
-        ),
-      ),
-    );
-  }
-}
-
-// Página de destino simples
-class SportDetalhePage extends StatelessWidget {
-  final CardContentsport content;
-  const SportDetalhePage({super.key, required this.content});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(content.title)),
-      body: Center(
-        child: SvgPicture.asset(
-          content.image,
-          width: 260,
-          height: 260,
-          fit: BoxFit.contain,
         ),
       ),
     );

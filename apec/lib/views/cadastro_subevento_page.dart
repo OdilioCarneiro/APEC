@@ -577,7 +577,7 @@ Future<void> _pickPhoto() async {
                         const SizedBox(height: 14),
                         TextFormField(
                           controller: _atletaController,
-                          decoration: const InputDecoration(labelText: 'Atleta'),
+                          decoration: const InputDecoration(labelText: 'Atletas'),
                         ),
                         const SizedBox(height: 14),
                         DropdownMenu<ModalidadeNatacao>(
@@ -597,12 +597,6 @@ Future<void> _pickPhoto() async {
                           decoration: const InputDecoration(labelText: 'Tempo (ex: 00:58.32)'),
                         ),
                         const SizedBox(height: 14),
-                        TextFormField(
-                          controller: _dataProvaController,
-                          decoration: const InputDecoration(
-                            labelText: 'Data da prova (opcional, AAAA-MM-DD)',
-                          ),
-                        ),
                       ],
                     ],
 

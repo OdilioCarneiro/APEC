@@ -485,23 +485,32 @@ class _EventosPageInstitState extends State<EventosPageInstit> {
     final evento = _evento;
     final screenHeight = MediaQuery.of(context).size.height;
 
-    final Gradient fundoEvento = (evento.categoria == Categoria.esportiva)
-        ? LinearGradient(
-            begin: Alignment.center,
-            end: Alignment.bottomCenter,
-            colors: [
-              const Color.fromARGB(255, 255, 255, 255),
-              Colors.yellow.shade300,
-            ],
-          )
-        : const LinearGradient(
-            begin: Alignment.center,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color.fromARGB(255, 255, 255, 255),
-              Color.fromARGB(255, 255, 110, 110),
-            ],
-          );
+    final Gradient fundoEvento = switch (evento.categoria) {
+          Categoria.esportiva => LinearGradient(
+              begin: Alignment.center,
+              end: Alignment.bottomCenter,
+              colors: [
+                const Color.fromARGB(255, 255, 255, 255),
+                Colors.yellow.shade300, // amarelo
+              ],
+            ),
+          Categoria.cultural => const LinearGradient(
+              begin: Alignment.center,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color.fromARGB(255, 255, 255, 255),
+                Color.fromARGB(255, 255, 110, 110), // vermelho
+              ],
+            ),
+          Categoria.ambos => const LinearGradient(
+              begin: Alignment.center,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color.fromARGB(255, 255, 255, 255),
+                Color.fromARGB(255, 110, 170, 255), // azul
+              ],
+            ),
+        };
 
     return PopScope(
       canPop: false,

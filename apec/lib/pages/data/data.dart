@@ -16,20 +16,20 @@ class UnbordingContent {
 List<UnbordingContent> contentsList = [
   UnbordingContent(
     image: 'assets/Making.svg',
-    title: 'Discover New Features',
-    description: 'Explore the app to find out more.',
+    title: 'Cultura e esporte no mesmo app',
+    description: 'Encontre shows, exposições, oficinas e competições em poucos segundos.',
     backgroundColor: const Color(0xFFF5E15F),
   ),
   UnbordingContent(
     image: 'assets/Creative.svg',
-    title: 'Get Started Now',
-    description: 'Sign up and enjoy the experience.',
+    title: 'Todos os detalhes em um toque',
+    description: 'cesse data, local e informações do evento para se planejar com facilidade',
     backgroundColor: Color(0xFF59B0E3),
   ),
   UnbordingContent(
     image: 'assets/basketball.svg',
-    title: 'Get Started Now',
-    description: 'Sign up and enjoy the experience.',
+    title: 'Vários eventos em um só lugar',
+    description: 'Descubra eventos culturais e esportivos de instituições por todo o país',
     backgroundColor: const Color(0xFFFA4050),
   ),
 ];
@@ -37,110 +37,125 @@ List<UnbordingContent> contentsList = [
 class CardContent {
   String image;
   String title;
+  String key; 
   Color backgroundColor;
-  
+
   CardContent({
     required this.image,
     required this.title,
+    required this.key,
     required this.backgroundColor,
   });
 }
 
 List<CardContent> cardContent = [
-
-CardContent(
-  image: 'assets/dance.svg',
-  title: 'Dança',
-  backgroundColor: const Color.fromARGB(255, 19, 86, 140),
-),
-
-CardContent(
-  image: 'assets/music.svg',
-  title: 'Música',
-  backgroundColor: const Color.fromARGB(255, 140, 19, 19),
-),
-
-CardContent(
-  image: 'assets/paint.svg',
-  title: 'Exposições',
-  backgroundColor: const Color.fromARGB(255, 136, 140, 19),
-),
-
-CardContent(
-  image: 'assets/theater.svg',
-  title: 'Cinema/Teatro',
-  backgroundColor: const Color.fromARGB(255, 140, 19, 19),
-),
-
-CardContent(
-  image: 'assets/books.svg',
-  title: 'Literatura',
-  backgroundColor: const Color.fromARGB(255, 19, 86, 140),
-)
+  CardContent(
+    image: 'assets/dance.svg',
+    title: 'Dança',
+    key: 'danca',
+    backgroundColor: const Color.fromARGB(255, 19, 86, 140),
+  ),
+  CardContent(
+    image: 'assets/music.svg',
+    title: 'Música',
+    key: 'musica',
+    backgroundColor: const Color.fromARGB(255, 140, 19, 19),
+  ),
+  CardContent(
+    image: 'assets/paint.svg',
+    title: 'Exposições',
+    key: 'exposicao',
+    backgroundColor: const Color.fromARGB(255, 136, 140, 19),
+  ),
+  CardContent(
+    image: 'assets/books.svg',
+    title: 'Literatura',
+    key: 'literatura',
+    backgroundColor: const Color.fromARGB(255, 19, 86, 140),
+  ),
+  CardContent(
+    image: 'assets/theater.svg',
+    title: 'Cinema/Teatro',
+    key: 'cinema',
+    backgroundColor: const Color.fromARGB(255, 140, 19, 19),
+  ),
 ];
+
 
 
 class CardContentsport {
   String image;
   String title;
+  String key;
   Color backgroundColor;
   CardContentsport({
     required this.image,
     required this.title,
+    required this.key,
     required this.backgroundColor,
   });
 }
 
 List<CardContentsport> cardContentsport = [
+  CardContentsport(
+    image: 'assets/nado.svg',
+    title: 'Natação',
+    key: 'natacao',
+    backgroundColor: const Color.fromARGB(255, 19, 86, 140),
+  ),
 
-CardContentsport(
-  image: 'assets/nado.svg',
-  title: 'Natação',
-  backgroundColor: const Color.fromARGB(255, 19, 86, 140),
-),
+  CardContentsport(
+    image: 'assets/basketball.svg',
+    title: 'Basquete',
+    key: 'basquete',
+    backgroundColor: const Color.fromARGB(255, 140, 19, 19),
+  ),
 
-CardContentsport(
-  image: 'assets/basketball.svg',
-  title: 'Basquete',
-  backgroundColor: const Color.fromARGB(255, 140, 19, 19),
-),
+  CardContentsport(
+    image: 'assets/volley.svg',
+    title: 'Vôlei',
+    key: 'voleibol', // enum: voleibol
+    backgroundColor: const Color.fromARGB(255, 136, 140, 19),
+  ),
 
-CardContentsport(
-  image: 'assets/volley.svg',
-  title: 'Vôlei',
-  backgroundColor: const Color.fromARGB(255, 136, 140, 19),
-),
+  CardContentsport(
+    image: 'assets/futsal.svg',
+    title: 'Futebol',
+    key: 'futebol', // enum: futebol
+    backgroundColor: const Color.fromARGB(255, 19, 86, 140),
+  ),
 
-CardContentsport(
-  image: 'assets/handbol.svg',
-  title: 'Handeboll',
-  backgroundColor: const Color.fromARGB(255, 140, 19, 19),
-),
+  CardContentsport(
+    image: 'assets/carimba.svg',
+    title: 'Queimada',
+    key: 'carimba', // enum: carimba
+    backgroundColor: const Color.fromARGB(255, 136, 140, 19),
+  ),
 
-CardContentsport(
-  image: 'assets/carimba.svg',
-  title: 'Queimada',
-  backgroundColor: const Color.fromARGB(255, 136, 140, 19),
-),
+  CardContentsport(
+    image: 'assets/corrida.svg',
+    title: 'Corridas',
+    key: 'corrida', // enum: corrida
+    backgroundColor: const Color.fromARGB(255, 140, 19, 19),
+  ),
 
-CardContentsport(
-  image: 'assets/futsal.svg',
-  title: 'Futebol',
-  backgroundColor: const Color.fromARGB(255, 19, 86, 140),
-),
+  CardContentsport(
+    image: 'assets/lutas.svg',
+    title: 'Lutas',
+    key: 'artesMarciais', // enum: artesMarciais
+    backgroundColor: const Color.fromARGB(255, 136, 140, 19),
+  ),
 
-CardContentsport(
-  image: 'assets/corrida.svg',
-  title: 'Corridas',
-  backgroundColor: const Color.fromARGB(255, 140, 19, 19),
-),
+  CardContentsport(
+    image: 'assets/handbol.svg',
+    title: 'Handeboll',
+    key: 'handeboll', // enum: handeboll (sim, com esse nome)
+    backgroundColor: const Color.fromARGB(255, 140, 19, 19),
+  ),
 
-CardContentsport(
-  image: 'assets/lutas.svg',
-  title: 'Lutas',
-  backgroundColor: const Color.fromARGB(255, 136, 140, 19),
-),
+  
 ];
+
 
 
 

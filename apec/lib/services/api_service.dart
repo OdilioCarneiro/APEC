@@ -520,26 +520,70 @@ class ApiService {
     _throwHttp(response, 'Erro ao renomear categoria');
   }
 
+      //tela de esportes
+    static Future<List<dynamic>> listarSubEventosEsportivos({String? categoriaEsportiva}) async {
+      final base = _uri('/subeventos');
 
-  // === PESQUISA UNIFICADA ===
+      final qp = <String, String>{'tipo': 'esportiva'};
+      if (categoriaEsportiva != null && categoriaEsportiva.isNotEmpty) {
+        qp['categoriaEsportiva'] = categoriaEsportiva;
+      }
+
+      final uri = base.replace(queryParameters: qp);
+
+      final response = await http.get(uri).timeout(_timeout);
+      if (response.statusCode == 200) return _decodeList(response);
+
+      _throwHttp(response, 'Erro ao listar subeventos esportivos');
+    }
+
+    // tela de cultura
+    static Future<List<dynamic>> listarSubEventosCulturais({String? categoriaCultural}) async {
+      final base = _uri('/subeventos');
+
+      final qp = <String, String>{'tipo': 'cultural'};
+      if (categoriaCultural != null && categoriaCultural.isNotEmpty) {
+        qp['categoriaCultural'] = categoriaCultural; // ex: 'musica', 'teatro'...
+      }
+
+      final uri = base.replace(queryParameters: qp);
+
+      final response = await http.get(uri).timeout(_timeout);
+      if (response.statusCode == 200) return _decodeList(response);
+
+      _throwHttp(response, 'Erro ao listar subeventos culturais');
+    }
+  // ===========================================================================
+  // PESQUISA UNIFICADA (Adicione isso no final da classe ApiService)
+  // ===========================================================================
+
   static Future<Map<String, List<dynamic>>> pesquisarTudo(String query) async {
     try {
       // Cria a URL: /api/search?q=texto
-      final uri = Uri.parse('$baseUrl/search').replace(queryParameters: {'q': query});
-      
+      final uri = Uri.parse('$baseUrl/search').replace(
+        queryParameters: {'q': query},
+      );
+
       final response = await http.get(uri).timeout(_timeout);
 
       if (response.statusCode == 200) {
-        final data = _decodeMap(response); // Usa seu helper existente
+        final data = _decodeMap(response);
+
         return {
-          'instituicoes': data['instituicoes'] ?? [],
-          'eventos': data['eventos'] ?? [],
-          'subeventos': data['subeventos'] ?? [],
+          'instituicoes': data['instituicoes'] is List ? data['instituicoes'] : [],
+          'eventos': data['eventos'] is List ? data['eventos'] : [],
+          'subeventos': data['subeventos'] is List ? data['subeventos'] : [],
         };
       }
+
       return {'instituicoes': [], 'eventos': [], 'subeventos': []};
+
     } catch (e) {
+      print('Erro na pesquisa: $e');
       return {'instituicoes': [], 'eventos': [], 'subeventos': []};
     }
   }
-} // Fim da classe ApiService
+
+}
+
+

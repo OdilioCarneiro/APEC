@@ -1,10 +1,31 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:apec/pages/data/data.dart'; // contém List<CardContent> cardContent
 
-class CulturaPage extends StatelessWidget {
+import 'package:apec/pages/data/data.dart'; // cardContent (precisa ter .key)
+import 'package:apec/pages/data/model.dart';
+import 'package:apec/services/api_service.dart';
+import 'package:apec/pages/components/card.dart'; // EventCardComponent
+
+import 'package:apec/views/filtros/subevento_filtro_cultural.dart'; // <-- IMPORT DO FILTRO
+
+class CulturaPage extends StatefulWidget {
   const CulturaPage({super.key});
+
+  @override
+  State<CulturaPage> createState() => _CulturaPageState();
+}
+
+class _CulturaPageState extends State<CulturaPage> {
+  late Future<List<dynamic>> _eventosAPI;
+
+  @override
+  void initState() {
+    super.initState();
+    _eventosAPI = ApiService.listarEventos();
+  }
+
+  bool _isEventoCultural(Evento e) => e.categoria == Categoria.cultural;
 
   @override
   Widget build(BuildContext context) {
@@ -20,15 +41,11 @@ class CulturaPage extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Barra de busca
               Container(
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color: const Color(0x33263238),
-                    width: 1,
-                  ),
+                  border: Border.all(color: const Color(0x33263238), width: 1),
                 ),
                 child: const CupertinoSearchTextField(
                   placeholder: 'Search',
@@ -38,7 +55,6 @@ class CulturaPage extends StatelessWidget {
               ),
               const SizedBox(height: 16),
 
-              // Título
               const Text(
                 'Eventos culturais',
                 style: TextStyle(
@@ -50,38 +66,113 @@ class CulturaPage extends StatelessWidget {
               ),
               const SizedBox(height: 8),
 
-              // Divisor
               const Divider(
                 height: 10,
                 thickness: 1,
                 color: Color(0x1F000000),
               ),
 
-              // Carrossel de cards
               const SizedBox(height: 12),
               SizedBox(
-                height: 168,
+                height: 152,
                 child: ListView.builder(
                   scrollDirection: Axis.horizontal,
                   itemCount: cardContent.length,
                   padding: const EdgeInsets.only(right: 8),
                   itemBuilder: (context, index) {
                     final c = cardContent[index];
+
                     return _CulturaTile(
                       title: c.title,
                       imageAsset: c.image,
                       background: c.backgroundColor,
                       radius: radius,
+
+                      // <-- AQUI: abre o filtro por categoria cultural
                       onTap: () {
                         Navigator.of(context).push(
                           MaterialPageRoute(
-                            builder: (_) => CulturaDetalhePage(content: c),
+                            builder: (_) => SubEventosPorCategoriaCulturalPage(
+                              categoriaCulturalKey: c.key, // precisa existir
+                              titulo: c.title,
+                            ),
                           ),
                         );
                       },
                     );
                   },
                 ),
+              ),
+
+              const SizedBox(height: 18),
+              const Text(
+                'Próximos eventos',
+                style: TextStyle(
+                  color: titleColor,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 10),
+
+              FutureBuilder<List<dynamic>>(
+                future: _eventosAPI,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const SizedBox(
+                      height: 190,
+                      child: Center(child: CircularProgressIndicator()),
+                    );
+                  }
+
+                  if (snapshot.hasError) {
+                    return SizedBox(
+                      height: 190,
+                      child: Row(
+                        children: [
+                          const Expanded(child: Text('Erro ao carregar eventos')),
+                          TextButton(
+                            onPressed: () => setState(() {
+                              _eventosAPI = ApiService.listarEventos();
+                            }),
+                            child: const Text('Tentar novamente'),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
+                  final eventos = (snapshot.data ?? [])
+                      .whereType<Map<String, dynamic>>()
+                      .map(Evento.fromAPI)
+                      .where(_isEventoCultural)
+                      .toList();
+
+                  if (eventos.isEmpty) {
+                    return const SizedBox(
+                      height: 190,
+                      child: Center(
+                        child: Text('Nenhum evento cultural encontrado'),
+                      ),
+                    );
+                  }
+
+                  return SizedBox(
+                    height: 190,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: eventos.length,
+                      separatorBuilder: (_, __) => const SizedBox(width: 12),
+                      itemBuilder: (context, index) {
+                        final evento = eventos[index];
+                        return SizedBox(
+                          width: 320,
+                          child: EventCardComponent(evento: evento),
+                        );
+                      },
+                    ),
+                  );
+                },
               ),
             ],
           ),
@@ -109,7 +200,6 @@ class _CulturaTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
-    // Largura responsiva: ~4 tiles por tela em celular, com limites
     final tileWidth = (screenWidth * 0.24).clamp(80.0, 130.0);
 
     return Padding(
@@ -128,10 +218,7 @@ class _CulturaTile extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: background,
                     borderRadius: radius,
-                    border: Border.all(
-                      color: const Color(0x14000000),
-                      width: 2,
-                    ),
+                    border: Border.all(color: const Color(0x14000000), width: 2),
                     boxShadow: const [
                       BoxShadow(
                         color: Color.fromARGB(26, 0, 0, 0),
@@ -143,7 +230,7 @@ class _CulturaTile extends StatelessWidget {
                   child: ClipRRect(
                     borderRadius: radius,
                     child: AspectRatio(
-                      aspectRatio: 1, // quadrado, ajusta à largura do tile
+                      aspectRatio: 1,
                       child: SvgPicture.asset(
                         imageAsset,
                         fit: BoxFit.cover,
@@ -173,27 +260,6 @@ class _CulturaTile extends StatelessWidget {
               ],
             ),
           ),
-        ),
-      ),
-    );
-  }
-}
-
-// Página de detalhes
-class CulturaDetalhePage extends StatelessWidget {
-  final CardContent content;
-  const CulturaDetalhePage({super.key, required this.content});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(content.title)),
-      body: Center(
-        child: SvgPicture.asset(
-          content.image,
-          width: 260,
-          height: 260,
-          fit: BoxFit.contain,
         ),
       ),
     );
