@@ -53,4 +53,7 @@ const SubEventoSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-module.exports = mongoose.model('SubEvento', SubEventoSchema);
+// ... seu schema existente ...
+SubeventoSchema.index({ titulo: 'text', descricao: 'text', palestrante: 'text' });
+module.exports = mongoose.model('Subevento', SubeventoSchema);
+

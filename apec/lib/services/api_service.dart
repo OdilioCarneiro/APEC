@@ -519,4 +519,27 @@ class ApiService {
     if (response.statusCode == 200) return _decodeMap(response);
     _throwHttp(response, 'Erro ao renomear categoria');
   }
-}
+
+
+  // === PESQUISA UNIFICADA ===
+  static Future<Map<String, List<dynamic>>> pesquisarTudo(String query) async {
+    try {
+      // Cria a URL: /api/search?q=texto
+      final uri = Uri.parse('$baseUrl/search').replace(queryParameters: {'q': query});
+      
+      final response = await http.get(uri).timeout(_timeout);
+
+      if (response.statusCode == 200) {
+        final data = _decodeMap(response); // Usa seu helper existente
+        return {
+          'instituicoes': data['instituicoes'] ?? [],
+          'eventos': data['eventos'] ?? [],
+          'subeventos': data['subeventos'] ?? [],
+        };
+      }
+      return {'instituicoes': [], 'eventos': [], 'subeventos': []};
+    } catch (e) {
+      return {'instituicoes': [], 'eventos': [], 'subeventos': []};
+    }
+  }
+} // Fim da classe ApiService

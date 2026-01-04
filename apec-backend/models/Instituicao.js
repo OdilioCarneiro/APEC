@@ -17,5 +17,6 @@ const instituicaoSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
-
-module.exports = mongoose.model('Instituicao', instituicaoSchema);
+// ... seu schema existente ...
+InstituicaoSchema.index({ nome: 'text', sigla: 'text' });
+module.exports = mongoose.model('Instituicao', InstituicaoSchema);

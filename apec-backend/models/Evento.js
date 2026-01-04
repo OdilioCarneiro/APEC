@@ -37,5 +37,6 @@ const EventoSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
-
+// ... seu schema existente ...
+EventoSchema.index({ nome: 'text', descricao: 'text', local: 'text', artistas: 'text' });
 module.exports = mongoose.model('Evento', EventoSchema);
