@@ -54,6 +54,10 @@ const SubEventoSchema = new mongoose.Schema(
 );
 
 // ... seu schema existente ...
-SubeventoSchema.index({ titulo: 'text', descricao: 'text', palestrante: 'text' });
-module.exports = mongoose.model('Subevento', SubeventoSchema);
+// ... seu schema existente ...
+
+// CORRIGIDO: Usando SubEventoSchema (com E maiúsculo) igual ao topo do arquivo
+SubEventoSchema.index({ nome: 'text', descricao: 'text', tema: 'text' });
+module.exports = mongoose.model('Subevento', SubEventoSchema);
+
 
