@@ -1,10 +1,37 @@
 const router = require('express').Router();
 const mongoose = require('mongoose');
 
-// Importando os Models
+// Importar os Models
 const Instituicao = require('../models/Instituicao');
 const Evento = require('../models/Evento');
 const Subevento = require('../models/Subevento');
+
+// Função auxiliar para escapar caracteres especiais do Regex
+function escapeRegex(text) {
+  return text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
+}
+
+// Função que transforma "apresentacao" em um Regex que aceita "Apresentação"
+function criarRegexInteligente(texto) {
+  const termo = texto.split('').map(char => {
+      // Se for A, aceita todos os tipos de A
+      if (/[aáàâã]/i.test(char)) return '[aáàâãAÁÀÂÃ]';
+      // Se for E, aceita todos os tipos de E
+      if (/[eéèê]/i.test(char)) return '[eéèêEÉÈÊ]';
+      // Se for I, aceita todos os tipos de I
+      if (/[iíìî]/i.test(char)) return '[iíìîIÍÌÎ]';
+      // Se for O, aceita todos os tipos de O
+      if (/[oóòôõ]/i.test(char)) return '[oóòôõOÓÒÔÕ]';
+      // Se for U, aceita todos os tipos de U
+      if (/[uúùû]/i.test(char)) return '[uúùûUÚÙÛ]';
+      // Se for C ou Ç, aceita os dois
+      if (/[cç]/i.test(char)) return '[cçCÇ]';
+      
+      return escapeRegex(char);
+  }).join('');
+  
+  return new RegExp(termo, 'i'); // 'i' ignora maiúsculas/minúsculas
+}
 
 // Rota GET /api/search?q=termo
 router.get('/', async (req, res) => {
@@ -12,17 +39,44 @@ router.get('/', async (req, res) => {
     const { q } = req.query;
 
     if (!q) {
-      return res.status(200).json({ instituicoes: [], eventos: [], subeventos: [] });
+      return res.json({ instituicoes: [], eventos: [], subeventos: [] });
     }
 
-    // Executa as 3 buscas ao mesmo tempo usando os índices de texto criados
+    // Cria o regex poderoso
+    const regex = criarRegexInteligente(q);
+    console.log(`Buscando por: ${q} | Regex gerado: ${regex}`);
+
     const [instituicoes, eventos, subeventos] = await Promise.all([
-      Instituicao.find({ $text: { $search: q } }),
-      Evento.find({ $text: { $search: q } }).populate('instituicaoId', 'nome imagem'),
-      Subevento.find({ $text: { $search: q } }).populate('eventoId', 'nome')
+      Instituicao.find({ 
+        $or: [
+          { nome: regex }, 
+          { sigla: regex },
+          { campus: regex },
+          { email: regex }
+        ] 
+      }),
+
+      Evento.find({ 
+        $or: [
+          { nome: regex }, 
+          { titulo: regex }, 
+          { descricao: regex },
+          { local: regex },
+          { categoria: regex }
+        ] 
+      }).populate('instituicaoId', 'nome imagem'),
+
+      Subevento.find({ 
+        $or: [
+          { nome: regex },
+          { titulo: regex }, 
+          { descricao: regex },
+          { tema: regex }
+        ] 
+      }).populate('eventoId', 'nome')
     ]);
 
-    return res.status(200).json({
+    return res.json({
       instituicoes,
       eventos,
       subeventos
