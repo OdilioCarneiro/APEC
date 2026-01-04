@@ -10,6 +10,9 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+
+
+
 // Conectar ao MongoDB Atlas
 const connectDB = async () => {
   try {
@@ -27,7 +30,12 @@ const connectDB = async () => {
 connectDB();
 
 // Rotas
+
 app.use('/api/eventos', require('./routes/eventos'));
+app.use('/api/instituicoes', require('./routes/instituicoes'));
+app.use('/api/subeventos', require('./routes/subeventos'));
+
+
 
 // Rota de saúde
 app.get('/api/health', (req, res) => {
@@ -43,6 +51,7 @@ app.get('/', (req, res) => {
 app.use((req, res) => {
   res.status(404).json({ erro: 'Rota não encontrada' });
 });
+
 
 // Iniciar servidor (escuta em todas as interfaces para permitir acesso de dispositivos na mesma rede)
 const PORT = process.env.PORT || 3000;

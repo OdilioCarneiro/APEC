@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:apec/pages/data/data.dart'; // contém List<CardContent> cardContent com os assets/cores informados
+import 'package:apec/pages/data/data.dart'; // contém List<CardContent> cardContent
 
 class CulturaPage extends StatelessWidget {
   const CulturaPage({super.key});
@@ -20,12 +20,15 @@ class CulturaPage extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Barra de busca (estilo iOS)
+              // Barra de busca
               Container(
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0x33263238), width: 1),
+                  border: Border.all(
+                    color: const Color(0x33263238),
+                    width: 1,
+                  ),
                 ),
                 child: const CupertinoSearchTextField(
                   placeholder: 'Search',
@@ -48,12 +51,16 @@ class CulturaPage extends StatelessWidget {
               const SizedBox(height: 8),
 
               // Divisor
-              const Divider(height: 10, thickness: 1, color: Color(0x1F000000)),
+              const Divider(
+                height: 10,
+                thickness: 1,
+                color: Color(0x1F000000),
+              ),
 
               // Carrossel de cards
               const SizedBox(height: 12),
               SizedBox(
-                height: 168, 
+                height: 168,
                 child: ListView.builder(
                   scrollDirection: Axis.horizontal,
                   itemCount: cardContent.length,
@@ -101,6 +108,10 @@ class _CulturaTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    // Largura responsiva: ~4 tiles por tela em celular, com limites
+    final tileWidth = (screenWidth * 0.24).clamp(80.0, 130.0);
+
     return Padding(
       padding: const EdgeInsets.only(right: 12),
       child: Material(
@@ -109,16 +120,18 @@ class _CulturaTile extends StatelessWidget {
           borderRadius: radius,
           onTap: onTap,
           child: SizedBox(
-            width: 95,
+            width: tileWidth,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-
                 DecoratedBox(
                   decoration: BoxDecoration(
                     color: background,
                     borderRadius: radius,
-                    border: Border.all(color: const Color(0x14000000), width: 2),
+                    border: Border.all(
+                      color: const Color(0x14000000),
+                      width: 2,
+                    ),
                     boxShadow: const [
                       BoxShadow(
                         color: Color.fromARGB(26, 0, 0, 0),
@@ -129,13 +142,11 @@ class _CulturaTile extends StatelessWidget {
                   ),
                   child: ClipRRect(
                     borderRadius: radius,
-                    child: SizedBox(
-                      width: 90,
-                      height: 90,
+                    child: AspectRatio(
+                      aspectRatio: 1, // quadrado, ajusta à largura do tile
                       child: SvgPicture.asset(
                         imageAsset,
                         fit: BoxFit.cover,
-                        // Placeholder para diagnóstico rápido
                         placeholderBuilder: (_) => const Center(
                           child: SizedBox(
                             width: 24,
@@ -147,7 +158,7 @@ class _CulturaTile extends StatelessWidget {
                     ),
                   ),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 4),
                 Text(
                   title,
                   textAlign: TextAlign.center,
@@ -168,7 +179,7 @@ class _CulturaTile extends StatelessWidget {
   }
 }
 
-// Exemplo simples de página de destino
+// Página de detalhes
 class CulturaDetalhePage extends StatelessWidget {
   final CardContent content;
   const CulturaDetalhePage({super.key, required this.content});

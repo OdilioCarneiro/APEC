@@ -1,23 +1,13 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:apec/pages/data/model.dart';
 import 'package:image_picker/image_picker.dart';
-import 'dart:io';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:apec/services/api_service.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:apec/pages/components/image_pick_crop.dart';
-
-
-class Cadastro extends StatelessWidget {
-  const Cadastro({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    // NÃO crie outro MaterialApp aqui (você já tem MaterialApp.router no main)
-    return const CadastroEventoScreen();
-  }
-}
 
 final Gradient backgroundSla = const LinearGradient(
   begin: Alignment.topCenter,
@@ -29,25 +19,23 @@ final Gradient backgroundSla = const LinearGradient(
   ],
 );
 
-class CadastroEventoScreen extends StatefulWidget {
-  const CadastroEventoScreen({super.key});
+class EditarEventoPage extends StatefulWidget {
+  final Evento evento;
+
+  const EditarEventoPage({super.key, required this.evento});
+
   @override
-  State<CadastroEventoScreen> createState() => _CadastroEventoScreenState();
+  State<EditarEventoPage> createState() => _EditarEventoPageState();
 }
 
-class _CadastroEventoScreenState extends State<CadastroEventoScreen> {
+class _EditarEventoPageState extends State<EditarEventoPage> {
   final _nomeController = TextEditingController();
   final _descricaoController = TextEditingController();
   final _localController = TextEditingController();
   final _imagemController = TextEditingController();
-  final _temaController = TextEditingController();
-  final _artistasController = TextEditingController();
   final _horarioController = TextEditingController();
 
   Categoria? _categoriaSelecionada;
-  CategoriEspotiva? _categoriaEsportivaSelecionada;
-  Genero? _generoSelecionado;
-  CategoriaCultural? _categoriaCulturalSelecionada;
 
   DateTime _dataSelecionada = DateTime.now();
   TimeOfDay _horaSelecionada = TimeOfDay.now();
@@ -58,7 +46,24 @@ class _CadastroEventoScreenState extends State<CadastroEventoScreen> {
   @override
   void initState() {
     super.initState();
-    _horarioController.text = _formatHora(_horaSelecionada);
+    final e = widget.evento;
+
+    _nomeController.text = e.nome;
+    _descricaoController.text = e.descricao;
+    _localController.text = e.local;
+    _horarioController.text = e.horario;
+
+    _categoriaSelecionada = e.categoria;
+
+    if (e.data.isNotEmpty) {
+      try {
+        _dataSelecionada = DateTime.parse(e.data);
+      } catch (_) {}
+    }
+    _horaSelecionada = _parseHora(e.horario);
+
+    // opcional: se você quiser manter o texto com a imagem atual (útil em debug)
+    _imagemController.text = e.imagem;
   }
 
   @override
@@ -67,8 +72,6 @@ class _CadastroEventoScreenState extends State<CadastroEventoScreen> {
     _descricaoController.dispose();
     _localController.dispose();
     _imagemController.dispose();
-    _temaController.dispose();
-    _artistasController.dispose();
     _horarioController.dispose();
     super.dispose();
   }
@@ -77,22 +80,32 @@ class _CadastroEventoScreenState extends State<CadastroEventoScreen> {
     return '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
   }
 
+  TimeOfDay _parseHora(String h) {
+    try {
+      final parts = h.split(':');
+      final hour = int.parse(parts[0]);
+      final minute = int.parse(parts[1]);
+      return TimeOfDay(hour: hour, minute: minute);
+    } catch (_) {
+      return TimeOfDay.now();
+    }
+  }
+
   Future<void> _pickPhoto() async {
-  final file = await ImagePickCrop.pickAndCrop(
-    context: context,
-    source: ImageSource.gallery,
-    cropStyle: CropStyle.rectangle,
-    presets: const [CropAspectRatioPreset.ratio16x9],
-    lockedRatio: const CropAspectRatio(ratioX: 16, ratioY: 9),
-  );
+    final file = await ImagePickCrop.pickAndCrop(
+      context: context,
+      source: ImageSource.gallery,
+      cropStyle: CropStyle.rectangle,
+      presets: const [CropAspectRatioPreset.ratio16x9],
+      lockedRatio: const CropAspectRatio(ratioX: 16, ratioY: 9),
+    );
 
-  if (file == null) return;
-
-  setState(() {
-    _selectedImage = file;
-    _imagemController.text = file.path;
-  });
-}
+    if (file == null) return;
+    setState(() {
+      _selectedImage = file;
+      _imagemController.text = file.path;
+    });
+  }
 
 
   Future<void> _selectDate(BuildContext context) async {
@@ -112,10 +125,11 @@ class _CadastroEventoScreenState extends State<CadastroEventoScreen> {
       builder: (BuildContext context, Widget? child) {
         return MediaQuery(
           data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
-          child: child!,
+          child: child ?? const SizedBox.shrink(),
         );
       },
     );
+
     if (picked != null) {
       setState(() {
         _horaSelecionada = picked;
@@ -124,10 +138,9 @@ class _CadastroEventoScreenState extends State<CadastroEventoScreen> {
     }
   }
 
-  Future<void> _salvarEvento() async {
+  Future<void> _salvarEdicao() async {
     if (_loading) return;
 
-    // Validação básica
     if (_categoriaSelecionada == null) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -144,13 +157,12 @@ class _CadastroEventoScreenState extends State<CadastroEventoScreen> {
       return;
     }
 
-    // >>> PEGA instituicaoId SALVO NO LOGIN
     final instituicaoId = await ApiService.lerInstituicaoId();
     if (instituicaoId == null || instituicaoId.isEmpty) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Você precisa estar logado como instituição para criar evento.'),
+          content: Text('Você precisa estar logado como instituição para editar evento.'),
           backgroundColor: Colors.red,
         ),
       );
@@ -160,82 +172,45 @@ class _CadastroEventoScreenState extends State<CadastroEventoScreen> {
     try {
       setState(() => _loading = true);
 
-      // Monta os dados
       final dados = <String, dynamic>{
         'nome': _nomeController.text,
-        'categoria': _categoriaSelecionada!.name,
+        'categoria': _categoriaSelecionada!.name, // esportiva | cultural | ambos
         'descricao': _descricaoController.text,
         'data': _dataSelecionada.toIso8601String().substring(0, 10),
         'horario': _formatHora(_horaSelecionada),
         'local': _localController.text,
-
-        // >>> AQUI: manda pro backend gravar no Evento
         'instituicaoId': instituicaoId,
+        // IMPORTANTE: tema/artistas/gênero/categoriaEsportiva/categoriaCultural saíram do Evento.
       };
 
-      if (_categoriaSelecionada == Categoria.esportiva) {
-        if (_categoriaEsportivaSelecionada != null) {
-          dados['categoriaEsportiva'] = _categoriaEsportivaSelecionada!.name;
-        }
-        if (_generoSelecionado != null) {
-          dados['genero'] = _generoSelecionado!.name;
-        }
+      // IMAGEM:
+      // Se o seu ApiService.atualizarEvento ainda for "JSON puro", isso aqui NÃO vai atualizar arquivo.
+      // A forma correta é o ApiService aceitar multipart quando _selectedImage != null.
+      // Aqui a tela só envia o path no campo imagem como fallback.
+      if (_selectedImage == null) {
+        // mantém a imagem atual ou o que tiver no controller (se você usar)
+        dados['imagem'] = widget.evento.imagem;
+      } else {
+        dados['imagem'] = _imagemController.text; // fallback (path local)
       }
 
-      if (_categoriaSelecionada == Categoria.cultural) {
-        dados['tema'] = _temaController.text;
-        dados['categoriaCultural'] = _categoriaCulturalSelecionada?.name ?? '';
-
-        final artistas = _artistasController.text
-            .split(';')
-            .map((e) => e.trim())
-            .where((e) => e.isNotEmpty)
-            .toList();
-
-        // manda como string (simples pro multipart)
-        dados['artistas'] = artistas.join(';');
-      }
-
-      await ApiService.criarEventoSmart(
-        dados: dados,
-        imagem: _selectedImage,
-      );
+      await ApiService.atualizarEvento(widget.evento.id ?? '', dados);
 
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Evento salvo com sucesso!'),
+          content: Text('Evento atualizado com sucesso!'),
           backgroundColor: Colors.green,
         ),
       );
 
-      // limpa e volta
-      _nomeController.clear();
-      _descricaoController.clear();
-      _localController.clear();
-      _imagemController.clear();
-      _temaController.clear();
-      _artistasController.clear();
-      _horarioController.clear();
-
-      setState(() {
-        _categoriaSelecionada = null;
-        _categoriaEsportivaSelecionada = null;
-        _generoSelecionado = null;
-        _categoriaCulturalSelecionada = null;
-        _selectedImage = null;
-        _dataSelecionada = DateTime.now();
-        _horaSelecionada = TimeOfDay.now();
-      });
-
-      // >>> retorna true pra página anterior poder dar refresh
       context.pop(true);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Erro ao salvar: $e'),
+          content: Text('Erro ao atualizar: $e'),
           backgroundColor: Colors.red,
         ),
       );
@@ -297,15 +272,8 @@ class _CadastroEventoScreenState extends State<CadastroEventoScreen> {
                               width: 2,
                             ),
                           ),
-                          child: _selectedImage == null
-                              ? Center(
-                                  child: Icon(
-                                    Icons.add_a_photo_rounded,
-                                    size: 70,
-                                    color: Colors.grey[400],
-                                  ),
-                                )
-                              : ClipRRect(
+                          child: _selectedImage != null
+                              ? ClipRRect(
                                   borderRadius: BorderRadius.circular(6),
                                   child: Image.file(
                                     _selectedImage!,
@@ -313,7 +281,24 @@ class _CadastroEventoScreenState extends State<CadastroEventoScreen> {
                                     height: double.infinity,
                                     fit: BoxFit.cover,
                                   ),
-                                ),
+                                )
+                              : (widget.evento.imagem.isNotEmpty
+                                  ? ClipRRect(
+                                      borderRadius: BorderRadius.circular(6),
+                                      child: Image.network(
+                                        widget.evento.imagem,
+                                        width: double.infinity,
+                                        height: double.infinity,
+                                        fit: BoxFit.cover,
+                                      ),
+                                    )
+                                  : Center(
+                                      child: Icon(
+                                        Icons.add_a_photo_rounded,
+                                        size: 70,
+                                        color: Colors.grey[400],
+                                      ),
+                                    )),
                         ),
                       ),
                     ),
@@ -337,7 +322,9 @@ class _CadastroEventoScreenState extends State<CadastroEventoScreen> {
                         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(7.0),
-                          borderSide: const BorderSide(color: Color.fromARGB(255, 83, 83, 83)),
+                          borderSide: const BorderSide(
+                            color: Color.fromARGB(255, 83, 83, 83),
+                          ),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(7.0),
@@ -391,51 +378,8 @@ class _CadastroEventoScreenState extends State<CadastroEventoScreen> {
 
                     const SizedBox(height: 14),
 
-                    if (_categoriaSelecionada == Categoria.esportiva) ...[
-                      DropdownMenu<CategoriEspotiva>(
-                        label: const Text('Tipo esportivo'),
-                        initialSelection: _categoriaEsportivaSelecionada,
-                        onSelected: (c) => setState(() => _categoriaEsportivaSelecionada = c),
-                        width: maxFormWidth,
-                        dropdownMenuEntries: CategoriEspotiva.values
-                            .map((c) => DropdownMenuEntry<CategoriEspotiva>(value: c, label: c.name))
-                            .toList(),
-                      ),
-                      const SizedBox(height: 14),
-                      DropdownMenu<Genero>(
-                        label: const Text('Gênero'),
-                        initialSelection: _generoSelecionado,
-                        onSelected: (g) => setState(() => _generoSelecionado = g),
-                        width: maxFormWidth,
-                        dropdownMenuEntries: Genero.values
-                            .map((g) => DropdownMenuEntry<Genero>(value: g, label: g.name))
-                            .toList(),
-                      ),
-                    ],
-
-                    if (_categoriaSelecionada == Categoria.cultural) ...[
-                      TextFormField(
-                        controller: _temaController,
-                        decoration: const InputDecoration(labelText: 'Tema'),
-                      ),
-                      const SizedBox(height: 14),
-                      DropdownMenu<CategoriaCultural>(
-                        label: const Text('Tipo cultural'),
-                        initialSelection: _categoriaCulturalSelecionada,
-                        onSelected: (c) => setState(() => _categoriaCulturalSelecionada = c),
-                        width: maxFormWidth,
-                        dropdownMenuEntries: CategoriaCultural.values
-                            .map((c) => DropdownMenuEntry<CategoriaCultural>(value: c, label: c.name))
-                            .toList(),
-                      ),
-                      const SizedBox(height: 14),
-                      TextFormField(
-                        controller: _artistasController,
-                        decoration: const InputDecoration(labelText: 'Artistas (separe por ";")'),
-                      ),
-                    ],
-
-                    const SizedBox(height: 14),
+                    // REMOVIDO:
+                    // - campos esportivos/culturais, pois agora pertencem ao SubEvento [memory:conversation_history:5]
 
                     TextFormField(
                       controller: _localController,
@@ -451,7 +395,9 @@ class _CadastroEventoScreenState extends State<CadastroEventoScreen> {
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: const Color.fromARGB(255, 85, 85, 85)),
+                          border: Border.all(
+                            color: const Color.fromARGB(255, 85, 85, 85),
+                          ),
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -480,7 +426,9 @@ class _CadastroEventoScreenState extends State<CadastroEventoScreen> {
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: const Color.fromARGB(255, 85, 85, 85)),
+                          border: Border.all(
+                            color: const Color.fromARGB(255, 85, 85, 85),
+                          ),
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -514,9 +462,9 @@ class _CadastroEventoScreenState extends State<CadastroEventoScreen> {
                             ),
                           ),
                         ),
-                        onPressed: _loading ? null : _salvarEvento,
+                        onPressed: _loading ? null : _salvarEdicao,
                         child: Text(
-                          _loading ? 'Salvando...' : 'Salvar Evento',
+                          _loading ? 'Salvando...' : 'Salvar alterações',
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 18,
