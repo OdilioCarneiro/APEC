@@ -19,13 +19,10 @@ const EventoSchema = new mongoose.Schema(
     },
 
     // Categorias de subeventos (lista de títulos)
-    // models/Evento.js
     categoriasSubeventos: {
       type: [String],
       default: ['Nova categoria'],
     },
-
-
 
     categoriaEsportiva: { type: String, default: '' },
     genero: { type: String, default: '' },
@@ -37,6 +34,7 @@ const EventoSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
-// ... seu schema existente ...
+
 EventoSchema.index({ nome: 'text', descricao: 'text', local: 'text', artistas: 'text' });
+
 module.exports = mongoose.model('Evento', EventoSchema);
