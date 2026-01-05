@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-
-import 'package:apec/pages/data/data.dart'; // cardContentsport
+import 'package:apec/pages/data/data.dart'; 
 import 'package:apec/pages/data/model.dart';
 import 'package:apec/services/api_service.dart';
 import 'package:apec/pages/components/card.dart';
+import 'package:apec/views/filtros/subevento_filtro_sport.dart'; 
 
-import 'package:apec/views/filtros/subevento_filtro_sport.dart'; // SubEventosPorCategoriaEsportivaPage
+// IMPORTS NOVOS OBRIGATÓRIOS
+import 'package:apec/pages/components/custom_search_bar.dart';
+import 'package:apec/pages/search_page.dart';
 
 class SportPage extends StatefulWidget {
   const SportPage({super.key});
@@ -18,6 +19,9 @@ class SportPage extends StatefulWidget {
 
 class _SportPageState extends State<SportPage> {
   late Future<List<dynamic>> _eventosAPI;
+  
+  // 1. Controlador de texto para a busca
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
@@ -27,6 +31,17 @@ class _SportPageState extends State<SportPage> {
 
   bool _isEventoEsportivo(Evento e) =>
       e.categoria == Categoria.esportiva || e.categoria == Categoria.ambos;
+
+  // 2. Função que navega para a tela de resultados
+  void _navegarParaPesquisa(String termo) {
+    if (termo.trim().isEmpty) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SearchPage(termoInicial: termo),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -42,18 +57,13 @@ class _SportPageState extends State<SportPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0x33263238), width: 1),
-                ),
-                child: const CupertinoSearchTextField(
-                  placeholder: 'Search',
-                  backgroundColor: Colors.transparent,
-                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                ),
+              // 3. Substituí o Container antigo por CustomSearchBar
+              CustomSearchBar(
+                controller: _searchController,
+                onSubmitted: _navegarParaPesquisa,
+                hintText: 'Pesquisar esportes, times...',
               ),
+              
               const SizedBox(height: 16),
 
               const Text(
@@ -73,7 +83,7 @@ class _SportPageState extends State<SportPage> {
                 color: Color(0x1F000000),
               ),
 
-              // ====== CARROSSEL DE MODALIDADES (ABRE PÁGINA) ======
+              // ====== CARROSSEL DE MODALIDADES ======
               const SizedBox(height: 12),
               SizedBox(
                 height: 152,
@@ -94,7 +104,7 @@ class _SportPageState extends State<SportPage> {
                         Navigator.of(context).push(
                           MaterialPageRoute(
                             builder: (_) => SubEventosPorCategoriaEsportivaPage(
-                              categoriaEsportivaKey: c.key, // ex: 'natacao', 'basquete'...
+                              categoriaEsportivaKey: c.key, 
                               titulo: c.title,
                             ),
                           ),
@@ -127,20 +137,7 @@ class _SportPageState extends State<SportPage> {
                   }
 
                   if (snapshot.hasError) {
-                    return SizedBox(
-                      height: 190,
-                      child: Row(
-                        children: [
-                          const Expanded(child: Text('Erro ao carregar eventos')),
-                          TextButton(
-                            onPressed: () => setState(() {
-                              _eventosAPI = ApiService.listarEventos();
-                            }),
-                            child: const Text('Tentar novamente'),
-                          ),
-                        ],
-                      ),
-                    );
+                    return const SizedBox(height: 190, child: Center(child: Text("Erro ao carregar")));
                   }
 
                   final eventos = (snapshot.data ?? [])
@@ -181,6 +178,7 @@ class _SportPageState extends State<SportPage> {
   }
 }
 
+// Mantenha a classe _SportTile igual estava antes...
 class _SportTile extends StatelessWidget {
   final String title;
   final String imageAsset;
@@ -234,11 +232,7 @@ class _SportTile extends StatelessWidget {
                         imageAsset,
                         fit: BoxFit.cover,
                         placeholderBuilder: (_) => const Center(
-                          child: SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          ),
+                          child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2)),
                         ),
                       ),
                     ),

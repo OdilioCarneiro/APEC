@@ -7,19 +7,13 @@ const Evento = require('../models/Evento');
 const Subevento = require('../models/Subevento');
 
 // === FUNÇÕES DE AJUDA ===
-
-// 1. Remove acentos (ex: "Apresentação" -> "Apresentacao")
 function removerAcentos(str) {
   if (!str) return "";
   return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
 
-// 2. Cria um Regex que aceita todas as variações de cada letra
 function criarRegexBlindado(textoUsuario) {
-  // Primeiro limpa o texto do usuário
   const limpo = removerAcentos(textoUsuario);
-
-  // Transforma cada letra num grupo que aceita acentos
   const padrao = limpo.split('').map(char => {
     if (/[aA]/.test(char)) return '[aáàâãäAÁÀÂÃÄ]';
     if (/[eE]/.test(char)) return '[eéèêëEÉÈÊË]';
@@ -27,12 +21,9 @@ function criarRegexBlindado(textoUsuario) {
     if (/[oO]/.test(char)) return '[oóòôõöOÓÒÔÕÖ]';
     if (/[uU]/.test(char)) return '[uúùûüUÚÙÛÜ]';
     if (/[cC]/.test(char)) return '[cçCÇ]';
-    
-    // Escapa caracteres especiais de regex (como . * +)
+    if (/\s/.test(char)) return '\\s+'; // Espaço flexível
     return char.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
   }).join('');
-
-  // Retorna o regex final com flag 'i' (ignora maiúsculo/minúsculo)
   return new RegExp(padrao, 'i');
 }
 
@@ -40,13 +31,10 @@ function criarRegexBlindado(textoUsuario) {
 router.get('/', async (req, res) => {
   try {
     const { q } = req.query;
-
     if (!q) return res.json({ instituicoes: [], eventos: [], subeventos: [] });
 
     const regex = criarRegexBlindado(q);
-    
-    // Para debug no log do servidor
-    console.log(`Input: ${q} | Regex: ${regex}`);
+    console.log(`Buscando por: ${q} | Regex: ${regex}`);
 
     const [instituicoes, eventos, subeventos] = await Promise.all([
       // Instituição
@@ -59,24 +47,29 @@ router.get('/', async (req, res) => {
         ]
       }),
 
-      // Evento (Procura em titulo E nome para garantir)
+      // Evento - ADICIONADO: categoriaCultural, categoriaEsportiva, artistas, tema
       Evento.find({
         $or: [
           { nome: regex },
-          { titulo: regex }, 
+          { titulo: regex },
           { descricao: regex },
           { local: regex },
-          { categoria: regex }
+          { categoria: regex },
+          { categoriaCultural: regex }, // <--- Importante
+          { categoriaEsportiva: regex }, // <--- Importante
+          { artistas: regex },
+          { tema: regex }
         ]
       }).populate('instituicaoId', 'nome imagem'),
 
-      // Subevento (Procura em titulo E nome para garantir)
+      // Subevento - ADICIONADO: palestrante
       Subevento.find({
         $or: [
           { nome: regex },
           { titulo: regex },
           { descricao: regex },
-          { tema: regex }
+          { tema: regex },
+          { palestrante: regex } // <--- Importante
         ]
       }).populate('eventoId', 'nome')
     ]);

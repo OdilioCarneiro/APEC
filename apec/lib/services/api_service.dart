@@ -583,6 +583,22 @@ class ApiService {
       return {'instituicoes': [], 'eventos': [], 'subeventos': []};
     }
   }
+// Adicione dentro da class ApiService
+static Future<Map<String, dynamic>> pesquisar(String termo) async {
+  // Ajuste a URL base se necessário
+  final uri = Uri.parse('$baseUrl/search?q=$termo'); 
+  
+  try {
+    final response = await http.get(uri);
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      throw Exception('Erro na busca');
+    }
+  } catch (e) {
+    throw Exception('Erro de conexão: $e');
+  }
+}
 
 }
 
