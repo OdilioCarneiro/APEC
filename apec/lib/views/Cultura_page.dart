@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
-import 'package:apec/pages/data/data.dart'; // cardContent (precisa ter .key)
+import 'package:apec/pages/data/data.dart';
 import 'package:apec/pages/data/model.dart';
 import 'package:apec/services/api_service.dart';
-import 'package:apec/pages/components/card.dart'; // EventCardComponent
+import 'package:apec/pages/components/card.dart';
+import 'package:apec/views/filtros/subevento_filtro_cultural.dart';
 
-import 'package:apec/views/filtros/subevento_filtro_cultural.dart'; // <-- IMPORT DO FILTRO
+import 'package:apec/pages/components/custom_search_bar.dart';
+import 'package:apec/pages/search_page.dart';
 
 class CulturaPage extends StatefulWidget {
   const CulturaPage({super.key});
@@ -18,11 +19,25 @@ class CulturaPage extends StatefulWidget {
 
 class _CulturaPageState extends State<CulturaPage> {
   late Future<List<dynamic>> _eventosAPI;
+  
+  // 1. Criamos o controlador da barra
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _eventosAPI = ApiService.listarEventos();
+  }
+
+  // 2. Função que leva para a tela de resultados
+  void _navegarParaPesquisa(String termo) {
+    if (termo.trim().isEmpty) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SearchPage(termoInicial: termo),
+      ),
+    );
   }
 
   bool _isEventoCultural(Evento e) => e.categoria == Categoria.cultural;
@@ -41,18 +56,15 @@ class _CulturaPageState extends State<CulturaPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0x33263238), width: 1),
-                ),
-                child: const CupertinoSearchTextField(
-                  placeholder: 'Search',
-                  backgroundColor: Colors.transparent,
-                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                ),
+              // === 3. AQUI ESTÁ A BARRA ATUALIZADA ===
+              // Substituímos o Container manual pelo componente padrão
+              CustomSearchBar(
+                controller: _searchController,
+                onSubmitted: _navegarParaPesquisa,
+                hintText: 'Search',
               ),
+              // ========================================
+              
               const SizedBox(height: 16),
 
               const Text(
@@ -73,6 +85,8 @@ class _CulturaPageState extends State<CulturaPage> {
               ),
 
               const SizedBox(height: 12),
+              
+              // Carrossel de Categorias Culturais
               SizedBox(
                 height: 152,
                 child: ListView.builder(
@@ -81,19 +95,16 @@ class _CulturaPageState extends State<CulturaPage> {
                   padding: const EdgeInsets.only(right: 8),
                   itemBuilder: (context, index) {
                     final c = cardContent[index];
-
                     return _CulturaTile(
                       title: c.title,
                       imageAsset: c.image,
                       background: c.backgroundColor,
                       radius: radius,
-
-                      // <-- AQUI: abre o filtro por categoria cultural
                       onTap: () {
                         Navigator.of(context).push(
                           MaterialPageRoute(
                             builder: (_) => SubEventosPorCategoriaCulturalPage(
-                              categoriaCulturalKey: c.key, // precisa existir
+                              categoriaCulturalKey: c.key,
                               titulo: c.title,
                             ),
                           ),
@@ -182,6 +193,7 @@ class _CulturaPageState extends State<CulturaPage> {
   }
 }
 
+// Mantivemos o _CulturaTile igualzinho, pois ele é só visual
 class _CulturaTile extends StatelessWidget {
   final String title;
   final String imageAsset;
