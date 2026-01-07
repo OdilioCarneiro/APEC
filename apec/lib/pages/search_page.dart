@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:apec/services/api_service.dart';
-import 'package:apec/pages/components/card.dart'; // EventCardComponent
-import 'package:apec/pages/components/card_subevento.dart'; // SubEventoCardComponent
+import 'package:apec/pages/components/card.dart'; 
+import 'package:apec/pages/components/card_subevento.dart';
 import 'package:apec/pages/data/model.dart';
 
 class SearchPage extends StatefulWidget {
@@ -25,12 +25,12 @@ class _SearchPageState extends State<SearchPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[100],
+      backgroundColor: const Color(0xFFF5F9FF),
       appBar: AppBar(
         title: Text('Busca: "${widget.termoInicial}"'),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
-        elevation: 0,
+        elevation: 0.5,
       ),
       body: FutureBuilder<Map<String, dynamic>>(
         future: _buscaFuture,
@@ -42,51 +42,64 @@ class _SearchPageState extends State<SearchPage> {
             return Center(child: Text('Erro: ${snapshot.error}'));
           }
 
-          final data = snapshot.data!;
-          final eventos = (data['eventos'] as List).map((e) => Evento.fromAPI(e)).toList();
-          final subeventos = (data['subeventos'] as List).map((s) => SubEvento.fromAPI(s)).toList();
-          final instituicoes = data['instituicoes'] as List;
+          final data = snapshot.data ?? {};
 
-          if (eventos.isEmpty && subeventos.isEmpty && instituicoes.isEmpty) {
+          // 1. LISTAS COM PROTEÇÃO (Se vier null, usa lista vazia [])
+          final eventosList = data['eventos'] as List? ?? [];
+          final subeventosList = data['subeventos'] as List? ?? [];
+          final instituicoesList = data['instituicoes'] as List? ?? [];
+
+          // 2. CONVERSÃO SEGURA PARA OBJETOS
+          final eventos = eventosList.map((e) => Evento.fromAPI(e)).toList();
+          final subeventos = subeventosList.map((s) => SubEvento.fromAPI(s)).toList();
+
+          if (eventos.isEmpty && subeventos.isEmpty && instituicoesList.isEmpty) {
             return const Center(child: Text("Nenhum resultado encontrado."));
           }
 
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              if (instituicoes.isNotEmpty) ...[
+              // --- INSTITUIÇÕES ---
+              if (instituicoesList.isNotEmpty) ...[
                 const Text("Instituições", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 10),
-                ...instituicoes.map((i) => Card(
+                ...instituicoesList.map((i) => Card(
                   child: ListTile(
                     leading: CircleAvatar(backgroundImage: NetworkImage(i['imagem'] ?? '')),
-                    title: Text(i['nome']),
+                    title: Text(i['nome'] ?? ''),
                     subtitle: Text(i['campus'] ?? ''),
                   ),
                 )),
-                const SizedBox(height: 20),
+                const SizedBox(height: 24),
               ],
               
+              // --- EVENTOS ---
               if (eventos.isNotEmpty) ...[
                 const Text("Eventos", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 10),
                 ...eventos.map((e) => Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
+                  padding: const EdgeInsets.only(bottom: 12),
                   child: EventCardComponent(evento: e),
                 )),
-                const SizedBox(height: 20),
+                const SizedBox(height: 24),
               ],
 
+              // --- SUBEVENTOS (JOGOS) ---
               if (subeventos.isNotEmpty) ...[
-                const Text("Jogos / Atividades", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const Text("Jogos e Atividades", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 10),
+                // Carrossel Horizontal
                 SizedBox(
                   height: 150,
                   child: ListView.separated(
                     scrollDirection: Axis.horizontal,
                     itemCount: subeventos.length,
-                    separatorBuilder: (_,__) => const SizedBox(width: 10),
-                    itemBuilder: (_, i) => SubEventoCardComponent(subevento: subeventos[i]),
+                    separatorBuilder: (_,__) => const SizedBox(width: 12),
+                    itemBuilder: (_, i) => SizedBox(
+                      width: 280, // Largura fixa para ficar bonito
+                      child: SubEventoCardComponent(subevento: subeventos[i]),
+                    ),
                   ),
                 )
               ],
